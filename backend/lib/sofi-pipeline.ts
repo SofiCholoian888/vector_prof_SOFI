@@ -4,6 +4,7 @@ import ragConfig from "@/config/rag.config.json" with { type: "json" };
 import validationPatterns from "@/config/validation_patterns.json" with { type: "json" };
 import promptManifest from "@/prompts/manifest.json" with { type: "json" };
 import { estimateAgeFromGrade, isTrialEligibleForGrade } from "@/lib/ai/age";
+import { readChatGateway } from "@/lib/ai/gateway-env";
 import { getFromCache, makeCacheKey, setCache } from "@/lib/ai/cache";
 import { type NormalizedCatalog, type NormalizedProfession } from "@/lib/ai/catalog";
 import { buildDossier, careerAnswers } from "@/lib/ai/dossier";
@@ -139,7 +140,7 @@ export async function runSofiPipeline(
     // Разные режимы инструкции не должны переиспользовать кэш друг друга.
     `+emb-${embeddingQueryVersion(readEmbeddingQueryMode())}`;
   const cacheKey = makeCacheKey(
-    [dossier, { ...retrieval, embeddingDurationMs: undefined }],
+    [dossier, { ...retrieval, embeddingDurationMs: undefined }, readChatGateway(process.env)?.model],
     promptVersion,
     catalogVersion,
     configVersion
@@ -185,7 +186,7 @@ export async function runSofiPipeline(
       const fullCatalog = catalog.professions.length <= ragConfig.full_catalog_threshold;
       const candidateIds = fullCatalog
         ? catalog.professions.map((profession) => profession.profession_id)
-        : retrieval.professionIds.slice(0, ragConfig.top_k_professions);
+        : retrieval.professionIds.slice(0, llmConfig.candidate_limit);
       const industryCandidateIds = elementary
         ? elementary.targets.map((target) => target.industry_id)
         : fullCatalog
@@ -209,17 +210,21 @@ export async function runSofiPipeline(
                 : candidate.description_9_11,
               key_skills: candidate.key_skills,
               evidence_refs: (retrieval.evidence[id] ?? []).filter((ref) => postprocessContext.dossierRefs.has(ref)),
-              trials: candidate.trials.slice(0, 3).map((trial) => ({
+              trials: candidate.trials.slice(0, 2).map((trial) => ({
                 trial_id: trial.trial_id,
                 title: trial.title,
                 trial_type: trial.trial_type,
                 fit_level: trial.fit_level,
               })),
-              programs: tier === "9-11" ? candidate.programs.slice(0, 3).map((program) => ({
+              programs: tier === "9-11" ? candidate.programs.slice(0, 2).map((program) => ({
                 program_id: program.program_id, title: program.name, fit_level: program.fit_level,
               })) : [],
             }];
           });
+      const supportingRefs = new Set(tierCandidates.flatMap((candidate) => candidate.evidence_refs));
+      const promptAnswers = elementary
+        ? signalAnswers
+        : signalAnswers.filter((answer) => supportingRefs.has(answer.ref) || answer.signalType === "interest");
       const juniorActivities = tier === "1-4"
         ? catalog.trials.filter((trial) => elementaryActivityIds.has(trial.trial_id) && isTrialEligibleForGrade({ ...trial, trial_type: trial.trial_type ?? null }, grade))
         : [];
@@ -229,7 +234,7 @@ export async function runSofiPipeline(
         catalogProfessionIds: new Set(Object.keys(candidates)),
         candidateProfessionIds: candidateSet,
         industryIds: new Set(industryCandidateIds),
-        answerRefs: postprocessContext.dossierRefs,
+        answerRefs: new Set(promptAnswers.map((answer) => answer.ref)),
         activityTypes: new Set(activityOptions.map((trial) => trial.trial_id)),
         candidateEvidenceRefs: Object.fromEntries(tierCandidates.map((p) => [p.profession_id, new Set(p.evidence_refs)])),
 
@@ -240,10 +245,10 @@ export async function runSofiPipeline(
           ])
         ),
         candidateTrialIds: Object.fromEntries(
-          [...candidateSet].map((id) => [id, new Set(candidates[id]?.trial_ids ?? [])])
+          tierCandidates.map((p) => [p.profession_id, new Set(p.trials.map((trial) => trial.trial_id))])
         ),
         candidateProgramIds: Object.fromEntries(
-          [...candidateSet].map((id) => [id, new Set(candidates[id]?.program_ids ?? [])])
+          tierCandidates.map((p) => [p.profession_id, new Set(p.programs.map((program) => program.program_id))])
         ),
         candidateTrialFitLevels: Object.fromEntries(
           [...candidateSet].map((id) => [
@@ -282,7 +287,7 @@ export async function runSofiPipeline(
                 in_region: dossier.student.in_region,
                 estimated_age: estimateAgeFromGrade(grade),
               },
-              answers: signalAnswers.map(({ ref, signalType, selected }) => ({
+              answers: promptAnswers.map(({ ref, signalType, selected }) => ({
                 ref,
                 signal_type: signalType,
                 selected,

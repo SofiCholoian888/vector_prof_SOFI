@@ -5,13 +5,13 @@
     "sha256": "43ecfcd83376ae2d5e3eb18fe31e2f962c0329196c8feb580a386938a0f25978"
   },
   "5-8": {
-    "prompt": "nav-5-8@1.0.3",
+    "prompt": "nav-5-8@1.0.5",
     "schema": "tier-5-8@1.0.0",
-    "sha256": "f22e04780facb0d069fdebdaa45e1dbc46d288d2e414ab81b3f3c265efcf8509"
+    "sha256": "78711e1572c4b40a9c98caff69ca2837fe6249bec5e5efac0a2fb0c127b8b6c9"
   },
   "9-11": {
-    "prompt": "nav-9-11@1.0.3",
+    "prompt": "nav-9-11@1.0.5",
     "schema": "tier-9-11@1.0.0",
-    "sha256": "6bf9fbaa909218e97273fa17b5ce2c8d9733d0adbfb52850af378750773cc5ee"
+    "sha256": "1684bb4ef22705280aca2ef3e6e6466aea3a354db0d14bf80d158a0a0506fcd4"
   }
 }

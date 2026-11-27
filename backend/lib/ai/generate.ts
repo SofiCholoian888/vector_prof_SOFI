@@ -1,6 +1,6 @@
 import llmConfig from "@/config/llm.config.json" with { type: "json" };
 import type { ChatMessage, LLMClient } from "./llm/client";
-import { type ValidationContext, type ValidationResult, validateResponse } from "./validate";
+import { extractJson, type ValidationContext, type ValidationResult, validateResponse } from "./validate";
 import { getRecommendationResponseFormat } from "./output-json-schema";
 import { softSanitizeResponse } from "./soft-sanitize";
 
@@ -9,6 +9,53 @@ export interface GenerationCall {
   latencyMs: number;
   usage?: unknown;
   providerCostUsd?: number;
+}
+
+// Optional links are rendered from the catalog. Drop links the model attached
+// to the wrong profession before checking the substantive recommendation.
+function cleanOptionalLinks(raw: string, context: ValidationContext): string {
+  let data;
+  try {
+    data = JSON.parse(extractJson(raw));
+  } catch {
+    return raw;
+  }
+  if (!Array.isArray(data?.hypotheses)) return raw;
+  for (const item of data.hypotheses) {
+    if (!item || typeof item.profession_id !== "string") continue;
+    const trials = context.candidateTrialIds?.[item.profession_id];
+    const programs = context.candidateProgramIds?.[item.profession_id];
+    if (trials && Array.isArray(item.trial_ids)) {
+      item.trial_ids = item.trial_ids.filter((id: unknown) => typeof id === "string" && trials.has(id));
+    }
+    if (programs && Array.isArray(item.program_ids)) {
+      item.program_ids = item.program_ids.filter((id: unknown) => typeof id === "string" && programs.has(id));
+    }
+    if (context.activityTypes && Array.isArray(item.activity_links)) {
+      item.activity_links = item.activity_links.filter((link: { type?: string; evidence_refs?: string[] } | null) =>
+        link?.type && context.activityTypes?.has(link.type) &&
+        Array.isArray(link.evidence_refs) && link.evidence_refs.length > 0 &&
+        link.evidence_refs.every((ref) => context.answerRefs.has(ref))
+      );
+    }
+  }
+  return JSON.stringify(data);
+}
+
+function dropInvalidOptionalSections(raw: string, errors: string[]): string {
+  const invalidIndustries = new Set<number>();
+  for (const error of errors) {
+    const match = /^(?:industries\[(\d+)\]|industries\.(\d+))[.:]/.exec(error);
+    if (match) invalidIndustries.add(Number(match[1] ?? match[2]));
+  }
+  const invalidPathNote = errors.some((error) => error.startsWith("path_note:"));
+  if (!invalidPathNote && !invalidIndustries.size) return raw;
+  const data = JSON.parse(extractJson(raw));
+  if (invalidPathNote && typeof data.path_note === "string") data.path_note = "";
+  if (invalidIndustries.size && Array.isArray(data.industries)) {
+    data.industries = data.industries.filter((_: unknown, index: number) => !invalidIndustries.has(index));
+  }
+  return JSON.stringify(data);
 }
 
 export async function generateValidatedResponse(
@@ -47,8 +94,10 @@ export async function generateValidatedResponse(
       });
     } catch (error) {
       observe?.({ status: "request_error", attempt, reason: error instanceof Error ? error.message : "unknown" });
+      const cause = error instanceof Error ? error.message : "unknown LLM error";
+      const transient = /LLM_FAILED_ALL_ATTEMPTS: (?:ECONNABORTED|ETIMEDOUT|ECONNRESET|EAI_AGAIN|HTTP 50[0234])$/.test(cause);
+      if (attempt === 1 && transient && deadlineAt - Date.now() >= 4000) continue;
       if (lastErrors.length > 0) {
-        const cause = error instanceof Error ? error.message : "unknown LLM error";
         throw new Error(
           `LLM_CORRECTION_FAILED: ${cause}; предыдущие ошибки валидации: ${lastErrors.join("; ")}`
         );
@@ -63,17 +112,28 @@ export async function generateValidatedResponse(
         ? {}
         : { providerCostUsd: response.providerCostUsd }),
     });
-    const validation = validateResponse(response.text, context);
+    const cleaned = cleanOptionalLinks(response.text, context);
+    const validation = validateResponse(cleaned, context);
     observe?.({ status: "response", attempt, latencyMs: response.latencyMs, usage: response.usage,
       finishReason: response.finishReason, errors: validation.success ? [] : validation.errors });
 
     if (validation.success) return { validation, attempts: attempt, calls, sanitized };
 
-    let responseTextForCorrection = response.text;
+    let responseTextForCorrection = cleaned;
     let errorsForCorrection = validation.errors;
-    if (validation.errors.some((error) => error.includes("содержит цифры"))) {
+    // A schema error in an optional section can hide later text-validation
+    // errors. Check once more after those structural errors are removed.
+    for (let pass = 0; pass < 2; pass++) {
+      const repairedText = dropInvalidOptionalSections(responseTextForCorrection, errorsForCorrection);
+      if (repairedText === responseTextForCorrection) break;
+      responseTextForCorrection = repairedText;
+      const repaired = validateResponse(repairedText, context);
+      if (repaired.success) return { validation: repaired, attempts: attempt, calls, sanitized: true };
+      errorsForCorrection = repaired.errors;
+    }
+    if (errorsForCorrection.some((error) => error.includes("содержит цифры"))) {
       try {
-        const sanitizedText = softSanitizeResponse(response.text, context);
+        const sanitizedText = softSanitizeResponse(responseTextForCorrection, context);
         const sanitizedValidation = validateResponse(sanitizedText, context);
         if (sanitizedValidation.success) {
           sanitized = true;

@@ -1,0 +1,25 @@
+{
+  "baseline": "e190e2469550c7697526eaff9e49fa4c2f3409ad",
+  "catalog": "data_freeze_1_json_v1",
+  "embedding_model": "EmbeddingsGigaR",
+  "embedding_query_mode": "plain",
+  "chat_model": "GigaChat-3-Lightning",
+  "records_sha256": "9bf2b2337ae949c1994636425aaf492c7edd569083e0c4701d7430687b0e8f7b",
+  "records_per_run": {
+    "lexical": 76,
+    "GigaChat-2-Pro-final-semantic": 6,
+    "GigaChat-3-Lightning-final-semantic": 6,
+    "release-semantic-1": 6,
+    "release-semantic-2": 6,
+    "release-semantic-3": 8,
+    "lexical-holdout": 8
+  },
+  "final_live_runs_use_cached_embeddings": false,
+  "sha256": {
+    "data/export/navigator.json": "49e07af39589bcda54697d10362b734cad19e435b32f50b259185bfed2495750",
+    "data/catalog.index.json": "19dfa927f70d84eeb6b042e3d793ea45cb80d6ae6864957c286640b0e620d706",
+    "config/llm.config.json": "7d66caec5263f603a430d82625443d1b339e3792026f0576623f8aa85b6d51af",
+    "config/rag.config.json": "a350f901c3fd7542d82324d85081b6757cd87a2fcdebc2a688de0eabd7f72626",
+    "prompts/manifest.json": "54ce714cec99092b64641ffbb005dc7d67fb1ff955c20e95bd61e079e99c4c33"
+  }
+}

@@ -15,6 +15,7 @@ import {
   readEmbeddingQueryMode,
 } from "./embedding-query";
 import { assertNoMockEmbeddingsInProduction, isMockEmbeddingsEnabled } from "./runtime-guards";
+import { buildLexicalIndex } from "./lexical-index";
 import { countMetric, logEvent } from "../observe";
 
 // ---------- Типы ----------
@@ -119,11 +120,11 @@ async function getEmbeddings(
 }
 
 // RRF из задания
-export function rrf(lists: string[][], k = ragConfig.rrf_k): Map<string, number> {
+export function rrf(lists: string[][], k = ragConfig.rrf_k, weights: number[] = []): Map<string, number> {
   const scores = new Map<string, number>();
-  for (const list of lists) {
+  for (const [index, list] of lists.entries()) {
     list.forEach((id, rank) => {
-      scores.set(id, (scores.get(id) ?? 0) + 1 / (k + rank + 1));
+      scores.set(id, (scores.get(id) ?? 0) + (weights[index] ?? 1) / (k + rank + 1));
     });
   }
   return scores;
@@ -374,6 +375,7 @@ export async function retrieve(
 
   const answerByRef = new Map(dossier.answers.map((answer) => [answer.ref, answer]));
   const professionEvidence: NonNullable<RetrievalResult["professionEvidence"]> = {};
+  const lexicalProfessionScores = new Map<string, number>();
   const rawScoreById = new Map<string, number>();
   const sourcesById = new Map<string, Set<string>>();
   const addEvidence = (id: string, refs: string[]) => {
@@ -381,10 +383,26 @@ export async function retrieve(
     refs.forEach((ref) => evidenceMap.get(id)!.add(ref));
   };
 
+  const useWeightedLexical = !semanticAvailable && queries.some((query) => query.groupName === "direction");
+  const lexical = useWeightedLexical
+    ? buildLexicalIndex(entries.map((entry) => {
+        const profession = runtimeCatalog.catalog.professions.find(
+          (item) => item.profession_id === entry.metadata.profession_id
+        );
+        return {
+          id: entry.chunkId,
+          text: entry.metadata.text_preview ?? "",
+          primaryText: profession && entry.type === "profession_core"
+            ? `${profession.name}. ${profession.what_kid_does}`
+            : undefined,
+        };
+      }))
+    : null;
   for (const [queryIndex, query] of queries.entries()) {
     const qVectors = semanticAvailable
       ? queryVectors.slice(queryOffsets[queryIndex], queryOffsets[queryIndex] + query.parts.length)
       : undefined;
+    const lexicalScores = lexical ? query.parts.map(lexical) : [];
     const minimumScore = qVectors
       ? ragConfig.min_similarity
       : ragConfig.lexical_min_similarity;
@@ -395,7 +413,7 @@ export async function retrieve(
       query.parts.forEach((part, index) => {
         const value = qVectors
           ? cosineSimilarity(qVectors[index] ?? [], entry.vector)
-          : lexicalSimilarity(part, entry.metadata.text_preview ?? "");
+          : lexicalScores[index]?.(entry.chunkId) ?? lexicalSimilarity(part, entry.metadata.text_preview ?? "");
         if (value > score) {
           second = score;
           score = value;
@@ -441,6 +459,10 @@ export async function retrieve(
     professionLists.push(professionScores.map((x) => x.id));
 
     for (const item of professionScores) {
+      if (lexical && query.groupName !== "general") {
+        const weight = query.groupName === "direction" ? 2 : 1;
+        lexicalProfessionScores.set(item.id, (lexicalProfessionScores.get(item.id) ?? 0) + weight * item.score);
+      }
       rawScoreById.set(item.id, Math.max(rawScoreById.get(item.id) ?? 0, item.score));
       const sources = sourcesById.get(item.id) ?? new Set<string>();
       sources.add(query.groupName);
@@ -473,26 +495,31 @@ export async function retrieve(
     }
   }
 
-  // 4. Слияние RRF
-  const industryRrf = rrf(industryLists);
-  const professionRrf = rrf(professionLists);
-  if (options.auditAggregation === "dedup") {
+  // Merge group ranks or use the accumulated lexical scores for professions.
+  const weights = lexical ? queries.map((query) => {
+    if (query.groupName === "direction") return 2;
+    // General repeats the same answers. Keep it as a backstop without letting
+    // it double the vote of a general-purpose situational answer.
+    return query.groupName === "general" ? 0.5 : 1;
+  }) : [];
+  const industryRrf = rrf(industryLists, ragConfig.rrf_k, weights);
+  const professionRanking = lexical ? lexicalProfessionScores : rrf(professionLists);
+  if (!lexical && options.auditAggregation === "dedup") {
     const general = queries.findIndex((query) => query.groupName === "general");
     professionLists[general]?.forEach((id, rank) => {
       const evidence = professionEvidence[id] ?? [];
       const repeated = evidence.find((entry) => entry.queryGroup === "general")?.answerRef;
       if (evidence.some((entry) => entry.queryGroup !== "general" && entry.answerRef === repeated)) {
-        professionRrf.set(id, (professionRrf.get(id) ?? 0) - 1 / (ragConfig.rrf_k + rank + 1));
+        professionRanking.set(id, (professionRanking.get(id) ?? 0) - 1 / (ragConfig.rrf_k + rank + 1));
       }
     });
   }
 
-  // Сортируем по RRF-скору. RRF выравнивает ранги, поэтому ничьи решает
-  // сырое сходство: иначе порядок задаёт только id профессии.
+  // Raw similarity breaks ties in the combined score.
   const sortedIndustries = [...industryRrf.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([id]) => id);
-  const sortedProfessions = [...professionRrf.entries()]
+  const sortedProfessions = [...professionRanking.entries()]
     .sort((a, b) =>
       b[1] - a[1] ||
       (rawScoreById.get(b[0]) ?? 0) - (rawScoreById.get(a[0]) ?? 0) ||
@@ -536,7 +563,7 @@ export async function retrieve(
     professionEvidence,
     embeddingDurationMs,
     evidence,
-    professionScores: Object.fromEntries(professionRrf),
+    professionScores: Object.fromEntries(professionRanking),
     professionRawScores: Object.fromEntries(rawScoreById),
     professionSources: Object.fromEntries(
       [...sourcesById.entries()].map(([id, sources]) => [id, [...sources]])

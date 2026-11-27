@@ -1,0 +1,51 @@
+profile,variant,grade,expected_industry,actual_industry,profession,hit
+probe-ind_001,base,9,ind_001,ind_001,prof_002,True
+probe-ind_002,base,9,ind_002,ind_002,prof_075,True
+probe-ind_003,base,9,ind_003,ind_003,prof_006,True
+probe-ind_004,base,9,ind_004,ind_004,prof_013,True
+probe-ind_005,base,9,ind_005,ind_005,prof_143,True
+probe-ind_006,base,9,ind_006,ind_006,prof_114,True
+probe-ind_007,base,9,ind_007,ind_007,prof_073,True
+probe-ind_008,base,9,ind_008,ind_008,prof_086,True
+probe-ind_009,base,9,ind_009,ind_009,prof_116,True
+probe-ind_010,base,9,ind_010,ind_010,prof_024,True
+probe-ind_011,base,9,ind_011,ind_011,prof_096,True
+probe-ind_012,base,9,ind_012,ind_013,prof_136,False
+probe-ind_013,base,9,ind_013,ind_013,prof_147,True
+probe-ind_014,base,9,ind_014,ind_014,prof_049,True
+probe-ind_015,base,9,ind_015,ind_015,prof_027,True
+probe-ind_016,base,9,ind_016,ind_016,prof_151,True
+control-mechanisms-7,base,7,ind_001,ind_001,prof_001,True
+control-mechanisms-7,direction,7,ind_012,ind_012,prof_021,True
+control-mechanisms-7,reorder,7,ind_001,ind_001,prof_001,True
+control-mechanisms-7,punctuation,7,ind_001,ind_001,prof_001,True
+control-mechanisms-7,paraphrase,7,ind_001,ind_001,prof_001,True
+control-mechanisms-7,region,7,ind_001,ind_001,prof_001,True
+control-mechanisms-7,outside,7,ind_001,ind_001,prof_001,True
+control-mechanisms-10,base,10,ind_001,ind_001,prof_001,True
+control-mechanisms-10,direction,10,ind_012,ind_012,prof_021,True
+control-mechanisms-10,reorder,10,ind_001,ind_001,prof_001,True
+control-mechanisms-10,punctuation,10,ind_001,ind_001,prof_001,True
+control-mechanisms-10,paraphrase,10,ind_001,ind_001,prof_001,True
+control-mechanisms-10,region,10,ind_001,ind_001,prof_001,True
+control-mechanisms-10,outside,10,ind_001,ind_001,prof_001,True
+control-crops-7,base,7,ind_015,ind_015,prof_150,True
+control-crops-7,direction,7,ind_016,ind_016,prof_151,True
+control-crops-10,base,10,ind_015,ind_015,prof_150,True
+control-crops-10,direction,10,ind_016,ind_016,prof_151,True
+control-laboratory-7,base,7,ind_009,ind_009,prof_116,True
+control-laboratory-7,direction,7,ind_003,ind_003,prof_006,True
+control-laboratory-10,base,10,ind_009,ind_009,prof_116,True
+control-laboratory-10,direction,10,ind_003,ind_003,prof_006,True
+control-social-7,base,7,ind_005,ind_005,prof_018,True
+control-social-7,direction,7,ind_012,ind_012,prof_021,True
+control-social-10,base,10,ind_005,ind_005,prof_018,True
+control-social-10,direction,10,ind_012,ind_012,prof_021,True
+holdout-1,Ухаживать за больными животными и проводить осмотры в ветеринарной клинике,7,ind_015,ind_015,prof_063,True
+holdout-1,"Составлять бухгалтерские отчёты, рассчитывать налоги и проверять документацию",7,ind_010,ind_010,prof_024,True
+holdout-2,"Проектировать многоэтажные здания, готовить архитектурные чертежи",10,ind_002,ind_002,prof_076,True
+holdout-2,Хочу защищать компьютерные сети и находить уязвимости в программном коде,10,ind_003,ind_003,prof_138,True
+holdout-3,"Разрабатывать новые рецептуры, проводить химические опыты с реактивами",7,ind_009,ind_009,prof_116,True
+holdout-3,Управлять перевозкой грузов и составлять графики доставки,7,ind_007,ind_003,prof_042,False
+holdout-4,Петь на сцене и играть в театральных спектаклях,10,ind_013,ind_013,prof_136,True
+holdout-4,Диагностировать заболевания и осматривать пациентов в больнице,10,ind_004,ind_004,prof_012,True

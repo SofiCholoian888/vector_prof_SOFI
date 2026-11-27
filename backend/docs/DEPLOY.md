@@ -48,9 +48,14 @@
    PGSSL=true
    AI_API_BASE_URL=https://litellmru.ds-hub-cf.ru/v1
    AI_API_KEY=replace-with-ai-gateway-key
-   AI_MODEL=GigaChat-2-Pro
+   AI_MODEL=GigaChat-3-Lightning
+   LLM_EMBEDDINGS_MODEL=EmbeddingsGigaR
+   EMBEDDING_QUERY_MODE=plain
    AI_TIMEOUT_MS=45000
    ```
+   Если в окружении задан `LLM_MODEL`, пайплайн берёт модель из него.
+   Для конфигурации, проверенной в AI‑02, задайте `LLM_MODEL=GigaChat-3-Lightning`.
+   [Результаты живых прогонов](hypothesis-quality-followup.md)
 3. Root directory — корень этого проекта (`package.json` с `next`).
 4. Build command: `npm run build`. Install: `npm install`.
 5. После деплоя проверьте `GET /api/health`. Ожидается `database: "connected"`. Поле `aiConfigured` равно `true`, только если заданы три AI-переменные; это **не** проверка, что шлюз отвечает.

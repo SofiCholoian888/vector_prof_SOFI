@@ -26,7 +26,9 @@ services:
       DATABASE_URL: postgresql://navigator:navigator_dev_password@db:5432/navigator
       AI_API_BASE_URL: ${AI_API_BASE_URL:-}
       AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-GigaChat-2-Pro}
+      AI_MODEL: ${AI_MODEL:-GigaChat-3-Lightning}
+      LLM_EMBEDDINGS_MODEL: ${LLM_EMBEDDINGS_MODEL:-EmbeddingsGigaR}
+      EMBEDDING_QUERY_MODE: ${EMBEDDING_QUERY_MODE:-plain}
       AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-45000}
     ports:
       - "3000:3000"
