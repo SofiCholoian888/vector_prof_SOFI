@@ -152,10 +152,11 @@ try {
   const generate = await call("generate", "POST", "/api/recommendations/generate", {
     body: {},
     headers: { "X-Session-ID": sessionId, "Idempotency-Key": requestId },
-    expectStatus: [200, 202],
+    // Синхронная генерация отвечает 201, очередь — 202.
+    expectStatus: [200, 201, 202],
   });
   evidence.generateHttpStatus = generate.status;
-  evidence.jobStatus = generate.json?.jobStatus ?? (generate.status === 200 ? "completed" : "pending");
+  evidence.jobStatus = generate.json?.jobStatus ?? (generate.status === 202 ? "pending" : "completed");
 
   let final = generate.json;
   let polls = 0;

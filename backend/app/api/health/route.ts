@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readChatGateway } from "@/lib/ai/gateway-env";
 import { query } from "@/lib/db";
 import { sessionProofEnforced } from "@/lib/session";
 import { logEvent } from "@/lib/observe";
@@ -6,10 +7,9 @@ import { logEvent } from "@/lib/observe";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Тот же разбор настроек, что и у клиента чата: LLM_* приоритетнее AI_*.
 function aiConfigured() {
-  return Boolean(
-    process.env.AI_API_BASE_URL && process.env.AI_API_KEY && process.env.AI_MODEL
-  );
+  return readChatGateway(process.env) !== null;
 }
 
 export async function GET() {
