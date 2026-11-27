@@ -1,3 +1,4 @@
+import { normalizeMunicipality } from "./municipality";
 import childQuestions from "@/data/agent_clarification_1-4.json" with { type: "json" };
 import type { Dossier } from "./dossier";
 import type { NormalizedCatalog } from "./catalog";
@@ -75,7 +76,7 @@ export function buildElementaryTargets(dossier:Dossier,catalog:NormalizedCatalog
      if(preferredFormat==="offline" && !offline)return false;
      if(dossier.constraints.free_only===true && !/бесплат|free|^0(?:[,.]0+)?$/i.test(trial.cost??""))return false;
      if(dossier.constraints.time_limit===true && (typeof trial.duration_minutes!=="number" || trial.duration_minutes>180))return false;
-     const sameCity=dossier.student.in_region && (trial.municipality??"").trim().toLowerCase()==="екатеринбург";
+     const sameCity=dossier.student.in_region && normalizeMunicipality(trial.municipality ?? "") === normalizeMunicipality(dossier.student.municipality ?? "Екатеринбург");
      if(dossier.constraints.place==="near_home" && !sameCity)return false;
      return online || sameCity;
    }).slice(0,3);

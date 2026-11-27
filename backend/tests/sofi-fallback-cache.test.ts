@@ -10,5 +10,5 @@ test("failed retrieval does not falsely report semantic search", () => {
 });
 
 test("degraded AI or lexical results are not written into recommendation cache", () => {
-  assert.match(source, /if \(mode === "llm" && retrieval\.mode === "semantic"\) \{\s*setCache\(cacheKey, result\)/);
+  assert.match(source, /if \(!audit && mode === "llm" && retrieval\.mode === "semantic"\) \{\s*setCache\(cacheKey, result\)/);
 });

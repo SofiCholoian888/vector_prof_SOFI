@@ -1,3 +1,5 @@
+import { isCoveredMunicipality } from "./municipality";
+import { isCareerSignal, isInformativeChoice, signalType, type SignalType } from "./signals";
 // lib/ai/dossier.ts
 import patterns from "@/config/validation_patterns.json" with { type: "json" };
 import agePolicy from "@/config/age_policy.json" with { type: "json" };
@@ -13,10 +15,11 @@ export type DossierAnswer = {
   questionId: string;
   questionnaire: string;
   selected: string[];
+  signalType?: SignalType;
 };
 
 export type Dossier = {
-  student: { tier: "1-4" | "5-8" | "9-11"; grade: number; in_region: boolean };
+  student: { tier: "1-4" | "5-8" | "9-11"; grade: number; in_region: boolean; municipality?: string };
   answers: DossierAnswer[];
   constraints: Record<string, string | boolean>;
   emptyShare: number;
@@ -150,7 +153,7 @@ export function buildDossier(
 ): Dossier {
   // 1. Определяем tier
   const tier = determineTier(student.school_grade);
-  const in_region = student.municipality.trim().toLowerCase() === "екатеринбург";
+  const in_region = isCoveredMunicipality(student.municipality);
 
   const answers: DossierAnswer[] = [];
   const constraints: Record<string, string | boolean> = {};
@@ -226,6 +229,27 @@ export function buildDossier(
       }
     }
 
+    const type = signalType(questionId);
+    if (type === "constraint") {
+      // Read option codes separately from their display labels.
+      const values = Array.isArray(raw.answer) ? raw.answer : [raw.answer];
+      if (questionId === "agent_q5_format") {
+        const format = values.find((value) => value === "online" || value === "offline" || value === "any");
+        if (typeof format === "string") constraints.format = format;
+      } else {
+        for (const key of ["free_only", "time_limit"]) {
+          if (values.includes(key)) constraints[key] = true;
+        }
+        if (values.includes("location") || values.includes("near_home")) constraints.place = "near_home";
+      }
+    }
+    selectedStrings = selectedStrings.filter((value) => isInformativeChoice(value) &&
+      (type !== "experience" || !/^(?:none|пока ничего из этого не пробовал)/iu.test(value)));
+    if (!selectedStrings.length) {
+      emptyQuestionCount++;
+      continue;
+    }
+
     // Получаем текст вопроса
     const qText =
       questionsDict[questionnaire]?.[questionId]?.text ??
@@ -239,11 +263,12 @@ export function buildDossier(
       questionId,
       questionnaire,
       selected: selectedStrings,
+      signalType: type,
     });
   }
 
   return {
-    student: { tier, grade: student.school_grade, in_region },
+    student: { tier, grade: student.school_grade, in_region, municipality: student.municipality },
     answers,
     constraints,
     emptyShare: significantQuestionCount === 0 ? 0 : emptyQuestionCount / significantQuestionCount,
@@ -261,4 +286,7 @@ function determineTier(grade: number): "1-4" | "5-8" | "9-11" {
   }
   // fallback для 1-11
   return "5-8";
+}
+export function careerAnswers(dossier: Dossier): DossierAnswer[] {
+  return dossier.answers.filter((answer) => isCareerSignal(answer.signalType ?? signalType(answer.questionId)));
 }

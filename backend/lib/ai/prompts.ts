@@ -15,7 +15,7 @@ export async function buildPrompt(tierId: "1-4" | "5-8" | "9-11"): Promise<strin
   const [promptName, promptVersion] = manifestEntry.prompt.split("@");
   const schemaVersion = manifestEntry.schema.split("@")[1];
   const promptsDirectory = path.resolve(process.cwd(), "prompts");
-  const commonPath = path.join(promptsDirectory, "common", "1.0.2.md");
+  const commonPath = path.join(promptsDirectory, "common", "1.0.3.md");
   const specificPath = path.join(promptsDirectory, promptName, `${promptVersion}.md`);
 
   const commonText = await fs.readFile(commonPath, "utf8");

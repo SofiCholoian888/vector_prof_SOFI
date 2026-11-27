@@ -130,6 +130,7 @@ export class OpenAICompatibleClient implements LLMClient {
         return {
           text,
           usage: response.data.usage,
+          finishReason: choice?.finish_reason,
           latencyMs: Date.now() - startedAt,
           ...(Number.isFinite(reportedCost) && reportedCost >= 0
             ? { providerCostUsd: reportedCost }

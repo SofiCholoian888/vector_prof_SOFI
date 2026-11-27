@@ -2,7 +2,8 @@
 import { readEmbeddingBatch } from "./embedding-response";
 import fs from "node:fs/promises";
 import { validateFreezeEmbeddingIndex, type FreezeEmbeddingIndex } from "./freeze-embedding";
-import type { Dossier } from "./dossier";
+import { careerAnswers, type Dossier } from "./dossier";
+import { isInformativeChoice, signalType } from "./signals";
 import ragConfig from "@/config/rag.config.json" with { type: "json" };
 import axios from "axios";
 import { embeddingVectorsUsable, readRecordedEmbeddingModel } from "./index-contract";
@@ -17,7 +18,17 @@ import { assertNoMockEmbeddingsInProduction, isMockEmbeddingsEnabled } from "./r
 import { countMetric, logEvent } from "../observe";
 
 // ---------- Типы ----------
+export type ProfessionEvidence = {
+  answerRef: string;
+  queryGroup: string;
+  signalType: ReturnType<typeof signalType>;
+  similarity: number;
+  retrievalMode: RetrievalResult["mode"];
+};
+
 export interface RetrievalResult {
+  professionEvidence?: Record<string, ProfessionEvidence[]>;
+  embeddingDurationMs?: number | null;
   industryIds: string[];
   professionIds: string[];
   // Маппинг: ID результата -> массив refs (A1, A2...), которые его вытянули
@@ -159,8 +170,6 @@ interface QueryGroup {
   refs: string[];
 }
 
-const PROCESS_QUESTION = /decision|readiness|events|мероприяти|решени|готовност/;
-
 export function buildQueries(dossier: Dossier): QueryGroup[] {
   const groups: QueryGroup[] = [];
   const generalTexts: string[] = [];
@@ -174,23 +183,17 @@ export function buildQueries(dossier: Dossier): QueryGroup[] {
   const direction: string[] = [];
   const directionRefs: string[] = [];
 
-  for (const ans of dossier.answers) {
-    const qId = `${ans.questionId} ${ans.question}`.toLowerCase();
-    // Choice status, readiness and attended career-guidance events describe the
-    // process, not an interest. Their options name school formats ("профпробы в
-    // колледже", "кружки (дополнительное образование)") and pulled education
-    // professions to the top of every list.
-    if (PROCESS_QUESTION.test(qId)) continue;
-    // Use the chosen options only. Question wording is identical for every
-    // student and only adds school vocabulary to the query.
-    const selectedText = ans.selected.join(", ");
+  for (const ans of careerAnswers(dossier)) {
+    const type = ans.signalType ?? signalType(ans.questionId);
+    const selectedText = ans.selected.filter(isInformativeChoice).join(", ");
+    if (!selectedText) continue;
     generalTexts.push(selectedText);
     generalRefs.push(ans.ref);
 
-    if (/subject|profile|предмет|профил/.test(qId)) {
+    if (type === "education_context") {
       subjects.push(selectedText);
       subjectsRefs.push(ans.ref);
-    } else if (/future_direction|direction|направлени/.test(qId)) {
+    } else if (type === "interest") {
       direction.push(selectedText);
       directionRefs.push(ans.ref);
     } else {
@@ -237,7 +240,7 @@ export function buildQueries(dossier: Dossier): QueryGroup[] {
 
 export async function retrieve(
   dossier: Dossier,
-  options: { deadlineAt?: number } = {}
+  options: { deadlineAt?: number; auditAggregation?: "mean2" | "dedup" } = {}
 ): Promise<RetrievalResult> {
   const queries = buildQueries(dossier);
   if (queries.length === 0) {
@@ -369,6 +372,8 @@ export async function retrieve(
     }
   }
 
+  const answerByRef = new Map(dossier.answers.map((answer) => [answer.ref, answer]));
+  const professionEvidence: NonNullable<RetrievalResult["professionEvidence"]> = {};
   const rawScoreById = new Map<string, number>();
   const sourcesById = new Map<string, Set<string>>();
   const addEvidence = (id: string, refs: string[]) => {
@@ -383,19 +388,23 @@ export async function retrieve(
     const minimumScore = qVectors
       ? ragConfig.min_similarity
       : ragConfig.lexical_min_similarity;
-    const scoreEntry = (entry: IndexEntry): { score: number; partIndex: number } => {
+    const scoreEntry = (entry: IndexEntry): { score: number; partIndex: number; similarity: number } => {
       let score = 0;
       let partIndex = -1;
+      let second = 0;
       query.parts.forEach((part, index) => {
         const value = qVectors
           ? cosineSimilarity(qVectors[index] ?? [], entry.vector)
           : lexicalSimilarity(part, entry.metadata.text_preview ?? "");
         if (value > score) {
+          second = score;
           score = value;
           partIndex = index;
+        } else {
+          second = Math.max(second, value);
         }
       });
-      return { score, partIndex };
+      return { score: options.auditAggregation === "mean2" && query.parts.length > 1 ? (score + second) / 2 : score, partIndex, similarity: score };
     };
     // Cite only the answer that actually matched.
     const refsFor = (partIndex: number) =>
@@ -415,7 +424,7 @@ export async function retrieve(
     for (const item of industryScores) addEvidence(item.id, refsFor(item.partIndex));
 
     // Ищем профессии
-    const professionBestById = new Map<string, { score: number; partIndex: number }>();
+    const professionBestById = new Map<string, { score: number; partIndex: number; similarity: number }>();
     for (const entry of professionEntries) {
       const id = entry.metadata.profession_id;
       if (!id) continue;
@@ -436,7 +445,17 @@ export async function retrieve(
       const sources = sourcesById.get(item.id) ?? new Set<string>();
       sources.add(query.groupName);
       sourcesById.set(item.id, sources);
-      addEvidence(item.id, refsFor(item.partIndex));
+      const [ref] = refsFor(item.partIndex);
+      const answer = answerByRef.get(ref);
+      if (answer) {
+        addEvidence(item.id, [ref]);
+        (professionEvidence[item.id] ??= []).push({
+          answerRef: ref, queryGroup: query.groupName,
+          signalType: answer.signalType ?? signalType(answer.questionId),
+          similarity: item.similarity,
+          retrievalMode: qVectors ? isMock ? "mock" : "semantic" : "lexical",
+        });
+      }
     }
 
     if (dossier.student.tier !== "1-4" && query.groupName === "direction") {
@@ -457,6 +476,16 @@ export async function retrieve(
   // 4. Слияние RRF
   const industryRrf = rrf(industryLists);
   const professionRrf = rrf(professionLists);
+  if (options.auditAggregation === "dedup") {
+    const general = queries.findIndex((query) => query.groupName === "general");
+    professionLists[general]?.forEach((id, rank) => {
+      const evidence = professionEvidence[id] ?? [];
+      const repeated = evidence.find((entry) => entry.queryGroup === "general")?.answerRef;
+      if (evidence.some((entry) => entry.queryGroup !== "general" && entry.answerRef === repeated)) {
+        professionRrf.set(id, (professionRrf.get(id) ?? 0) - 1 / (ragConfig.rrf_k + rank + 1));
+      }
+    });
+  }
 
   // Сортируем по RRF-скору. RRF выравнивает ранги, поэтому ничьи решает
   // сырое сходство: иначе порядок задаёт только id профессии.
@@ -504,6 +533,8 @@ export async function retrieve(
   return {
     industryIds: sortedIndustries,
     professionIds: sortedProfessions,
+    professionEvidence,
+    embeddingDurationMs,
     evidence,
     professionScores: Object.fromEntries(professionRrf),
     professionRawScores: Object.fromEntries(rawScoreById),

@@ -35,6 +35,7 @@ export interface ValidationContext {
   candidateProfessionIds: Set<string>;
   industryIds: Set<string>;
   answerRefs: Set<string>;
+  candidateEvidenceRefs?: Record<string, Set<string>>;
   activityTypes?: Set<string>;
   professionIndustryById?: Record<string, string>;
   candidateTrialIds?: Record<string, Set<string>>;
@@ -205,6 +206,15 @@ export function validateResponse(rawText: string, ctx: ValidationContext): Valid
         errors.push(`${field}: отрасль не соответствует профессии в каталоге`);
       }
 
+      if (!hypothesis.why.trim()) errors.push(`${field}.why: объяснение пустое`);
+      if (/100%|гарантированн|идеально подходит|однозначно подходит/iu.test(hypothesis.why) ||
+          /у тебя (?:талант|отличные способности)|ты (?:уже умеешь|точно станешь)/iu.test(hypothesis.why)) {
+        errors.push(`${field}.why: неподтверждённое утверждение об ученике`);
+      }
+      const candidateRefs = ctx.candidateEvidenceRefs?.[hypothesis.profession_id];
+      if (candidateRefs && !hypothesis.evidence_refs.some((ref) => candidateRefs.has(ref))) {
+        errors.push(`${field}: укажи хотя бы одну ссылку из evidence_refs этой профессии`);
+      }
       checkText(hypothesis.why, `${field}.why`);
       checkText(hypothesis.what_to_try, `${field}.what_to_try`);
       if ("watch_out" in hypothesis && typeof hypothesis.watch_out === "string") {

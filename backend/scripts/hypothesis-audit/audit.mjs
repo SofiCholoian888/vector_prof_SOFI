@@ -1,18 +1,21 @@
-// Offline audit of the recommendation ranking. Run from backend:
+// Recommendation audit on checked-in synthetic profiles. Run from backend:
 //   node --experimental-strip-types --import ./tests/register-app-alias.mjs \
 //     scripts/hypothesis-audit/audit.mjs <dataDir> <out.jsonl> \
 //     [--variants=base,flip] [--profile=<id>] [--mode=lexical|semantic]
 //
 // <dataDir> must contain data/ (catalog.index.json, navigator.json or
 // catalog.normalized.json). Config and prompts always come from backend/.
-// No generation model is called: hypotheses come from the retrieval-only path,
-// so a lexical run is fully reproducible and a semantic run only needs the
-// embedding gateway.
+// Default: retrieval_only. --pipeline=full calls runSofiPipeline. Use
+// --catalog=legacy only with the historical catalog/index in an isolated directory.
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { controlProfiles } from "./controls.mjs";
+import axios from "axios";
+import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const backendRoot = path.resolve(new URL("../..", import.meta.url).pathname);
+const backendRoot = fileURLToPath(new URL("../..", import.meta.url));
 const [dataDirArg, outArg, ...flags] = process.argv.slice(2);
 if (!dataDirArg || !outArg) {
   console.error("usage: audit.mjs <dataDir> <out.jsonl> [--variants=base,flip] [--profile=<id>] [--mode=lexical|semantic]");
@@ -24,16 +27,53 @@ const variantFlag = flags.find((flag) => flag.startsWith("--variants="));
 const variants = (variantFlag?.slice("--variants=".length) ?? "base,flip").split(",");
 const profileFilter = flags.find((flag) => flag.startsWith("--profile="))?.slice("--profile=".length);
 
-const modeFlag = flags.find((flag) => flag.startsWith("--mode="))?.slice("--mode=".length) ?? "lexical";
-process.env.USE_MOCK_EMBEDDINGS = "false";
-// Сравнительные прогоны намеренно работают и на legacy-каталоге.
-process.env.REQUIRE_FREEZE_CATALOG = process.env.REQUIRE_FREEZE_CATALOG ?? "false";
-if (modeFlag !== "semantic") {
-  for (const key of ["LLM_BASE_URL", "LLM_API_KEY", "LLM_EMBEDDINGS_MODEL"]) delete process.env[key];
+const option = (name) => flags.find((flag) => flag.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
+const modeFlag = option("mode") ?? "lexical";
+const pipeline = option("pipeline") ?? "retrieval_only";
+const cap = option("max-tokens");
+if (cap !== undefined && (!/^\d+$/.test(cap) || Number(cap) < 1)) throw new Error("--max-tokens must be positive");
+if (!["semantic", "lexical"].includes(modeFlag) || !["full", "retrieval_only"].includes(pipeline)) {
+  throw new Error("Use --mode=semantic|lexical and --pipeline=full|retrieval_only");
 }
+const cacheDir = option("embedding-cache") && path.resolve(option("embedding-cache"));
+if (cacheDir) fs.mkdirSync(cacheDir, { recursive: true });
+const adapter = axios.getAdapter(axios.defaults.adapter);
+let httpEvents = [];
+axios.defaults.adapter = async (request) => {
+  const body = JSON.parse(request.data);
+  const embedding = request.url.endsWith("/embeddings");
+  const cacheFile = embedding && cacheDir
+    ? path.join(cacheDir, createHash("sha256").update(JSON.stringify({ model:body.model, input:body.input })).digest("hex") + ".json")
+    : null;
+  if (cacheFile && fs.existsSync(cacheFile)) {
+    return { config:request, status:200, statusText:"OK", headers:{}, data:fs.readFileSync(cacheFile,"utf8") };
+  }
+  const start = performance.now();
+  try {
+    const response = await adapter(request);
+    const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+    if (cacheFile) fs.writeFileSync(cacheFile, JSON.stringify(data));
+    if (!embedding) {
+      const choice = data.choices?.[0];
+      httpEvents.push({ latencyMs:Math.round(performance.now()-start), status:response.status,
+        usage:data.usage, finishReason:choice?.finish_reason, raw:choice?.message?.content });
+    }
+    return response;
+  } catch (error) {
+    httpEvents.push({ endpoint:embedding ? "embeddings" : "chat", latencyMs:Math.round(performance.now()-start),
+      status:error.response?.status, code:error.code });
+    throw error;
+  }
+};
+process.env.USE_MOCK_EMBEDDINGS = "false";
+process.env.EMBEDDING_QUERY_MODE = "plain";
+process.env.REQUIRE_FREEZE_CATALOG = option("catalog") === "legacy" ? "false" : "true";
+if (modeFlag === "lexical") delete process.env.LLM_EMBEDDINGS_MODEL;
+else process.env.LLM_EMBEDDINGS_MODEL = "EmbeddingsGigaR";
 process.chdir(dataDir);
 
 const { prepareSofiInput } = await import(pathToFileURL(path.join(backendRoot, "lib/sofi-adapter.ts")).href);
+const { runSofiPipeline } = await import(pathToFileURL(path.join(backendRoot, "lib/sofi-pipeline.ts")).href);
 const { buildDossier } = await import(pathToFileURL(path.join(backendRoot, "lib/ai/dossier.ts")).href);
 const { retrieve } = await import(pathToFileURL(path.join(backendRoot, "lib/ai/retrieval.ts")).href);
 const { buildFallbackResponse } = await import(pathToFileURL(path.join(backendRoot, "lib/ai/fallback.ts")).href);
@@ -51,13 +91,6 @@ const questionMaster = JSON.parse(
 const runtime = loadRuntimeCatalog(dataDir);
 const catalog = runtime.catalog;
 const industriesMap = Object.fromEntries(catalog.industries.map((industry) => [industry.slug, industry.name]));
-const candidatesMap = Object.fromEntries(
-  catalog.professions.map((profession) => {
-    const trials = profession.trials.filter((trial) => isTrialEligibleForGrade(trial, 11));
-    return [profession.profession_id, { ...profession, trials }];
-  })
-);
-
 function questionOptions(questionnaireName, questionId) {
   const questionnaire = questionMaster.questionnaires.find(
     (item) => item.questionnaire_name.trim() === questionnaireName.trim()
@@ -123,7 +156,7 @@ function flipAnswers(profile) {
     if (!alternative) continue;
     return {
       ...profile,
-      id: `${profile.id}-flip`,
+      id: profile.id,
       variant: "flip",
       answers: { ...profile.answers, [questionId]: [alternative] },
       flippedQuestion: questionId,
@@ -148,7 +181,25 @@ async function runProfile(profile, variant) {
     diagnosticAnswers: toDiagnosticAnswers(profile),
   });
   const dossier = buildDossier(prepared.rawAnswers, prepared.student);
-  const retrieval = await retrieve(dossier);
+  httpEvents = [];
+  const start = performance.now();
+  const generationEvents = [];
+  let retrieval;
+  let fullResponse;
+  if (pipeline === "full" || option("diversification")) {
+    fullResponse = await runSofiPipeline({ prepared, professions:[] }, {
+      onRetrieval: (value) => { retrieval = value; },
+      onGeneration: (event) => generationEvents.push(event),
+      retrievalOnly:pipeline === "retrieval_only",
+      diversification:option("diversification"),
+      maxTokens:cap ? Number(cap) : undefined,
+    });
+  }
+  retrieval ??= await retrieve(dossier, { auditAggregation: option("aggregation") });
+  const candidatesMap = Object.fromEntries(catalog.professions.map((profession) => {
+    const trials = profession.trials.filter((trial) => isTrialEligibleForGrade(trial, profile.grade));
+    return [profession.profession_id, { ...profession, trials, trial_ids:trials.map((trial) => trial.trial_id) }];
+  }));
   const answersMap = Object.fromEntries(
     dossier.answers.map((answer) => [
       answer.ref,
@@ -157,6 +208,7 @@ async function runProfile(profile, variant) {
         questionId: answer.questionId,
         questionnaire: answer.questionnaire,
         selected: answer.selected,
+      signalType:answer.signalType,
       },
     ])
   );
@@ -174,12 +226,21 @@ async function runProfile(profile, variant) {
     inRegion: dossier.student.in_region,
     catalogVersion: catalog.version,
   };
-  const response = await buildFallbackResponse({ dossier, retrieval, ctx, catalogVersion: catalog.version });
+  const response = fullResponse ?? await buildFallbackResponse({ dossier, retrieval, ctx, catalogVersion: catalog.version });
   // The pipeline replaces the fallback tags for grades 1-4 with the deterministic
   // ZIP mapping, so measure that mapping instead of the retrieval industries.
-  const elementary = dossier.student.tier === "1-4" ? buildElementaryTargets(dossier, catalog) : null;
+  const elementary = !fullResponse && response.status !== "low_signal" && dossier.student.tier === "1-4" ? buildElementaryTargets(dossier, catalog) : null;
   return {
     catalog: runtime.origin,
+    requestedMode:modeFlag,
+    semanticSkipped:modeFlag === "semantic" && retrieval.mode === "lexical" && retrieval.warnings.length === 0 && !retrieval.professionIds.length,
+    technicalFailure:retrieval.mode !== modeFlag && retrieval.professionIds.length > 0 ||
+      (modeFlag === "semantic" && retrieval.warnings.some((w) => /fallback|failed/.test(w))),
+    pipeline, maxTokensOverride:cap, generation:response.generation, summary:response.summary,
+    latencyMs: Math.round(performance.now() - start), generationEvents, httpEvents,
+    municipality:profile.municipality,
+    relevant:profile.relevant ?? [],
+    inputHash:createHash("sha256").update(JSON.stringify(profile.answers)).digest("hex"),
     catalogVersion: catalog.version,
     catalogProfessions: catalog.professions.length,
     profile: profile.id,
@@ -195,6 +256,7 @@ async function runProfile(profile, variant) {
       questionId: answer.questionId,
       question: answer.question,
       selected: answer.selected,
+      signalType:answer.signalType,
     })),
     retrieval: {
       mode: retrieval.mode,
@@ -204,6 +266,8 @@ async function runProfile(profile, variant) {
       professionRawScores: retrieval.professionRawScores ?? {},
       professionSources: retrieval.professionSources ?? {},
       industryIds: retrieval.industryIds,
+      evidence:retrieval.professionEvidence,
+      embeddingDurationMs:retrieval.embeddingDurationMs,
       industryScores: retrieval.industryScores,
     },
     status: elementary ? (elementary.targets.length ? "mapped" : "no_match") : response.status,
@@ -231,6 +295,9 @@ async function runProfile(profile, variant) {
       confidence: hypothesis.confidence?.level ?? null,
       why: hypothesis.why,
       evidence_refs: hypothesis.evidence_refs,
+      trial_ids:hypothesis.trial_ids,
+      allowed_trials:candidatesMap[hypothesis.profession_id]?.trial_ids ?? [],
+      explanation_source:response.generation?.mode === "llm" ? "llm" : "fallback",
       evidence_selected: (hypothesis.evidence ?? []).map((item) => item.selected),
     })),
   };
@@ -239,21 +306,35 @@ async function runProfile(profile, variant) {
 const profiles = [
   ...mockProfiles(),
   ...probeProfiles(),
-].filter((profile) => !profileFilter || profile.id === profileFilter);
+  ...(flags.includes("--controls") ? controlProfiles() : []),
+].filter((profile) => !profileFilter || profileFilter.split(",").includes(profile.id));
 
 const out = fs.createWriteStream(outPath, { flags: "w" });
 let count = 0;
 for (const profile of profiles) {
-  const jobs = [{ profile, variant: "base" }];
-  if (variants.includes("flip") && !profile.expected) {
+  if (profile.variant && !variants.includes(profile.variant)) continue;
+  const jobs = [{ profile, variant: profile.variant ?? "base" }];
+  if (variants.includes("flip") && profile.id.startsWith("mock-")) {
     const flipped = flipAnswers(profile);
     if (flipped) jobs.push({ profile: flipped, variant: "flip" });
   }
   for (const job of jobs) {
-    const record = await runProfile(job.profile, job.variant);
+    let record;
+    try {
+      record = await runProfile(job.profile, job.variant);
+    } catch (error) {
+      record = { profile:job.profile.id, grade:job.profile.grade, variant:job.variant,
+        tier:job.profile.grade <= 4 ? "1-4" : job.profile.grade <= 8 ? "5-8" : "9-11",
+        expected:job.profile.expected, relevant:job.profile.relevant ?? [],
+        inputHash:createHash("sha256").update(JSON.stringify(job.profile.answers)).digest("hex"),
+        requestedMode:modeFlag, pipeline, catalogVersion:catalog.version, technicalFailure:true,
+        municipality:job.profile.municipality,
+        status:"error", warnings:[error instanceof Error ? error.message : "unknown"],
+        retrieval:{professionIds:[]}, hypotheses:[] };
+    }
     out.write(`${JSON.stringify(record)}\n`);
     count++;
   }
 }
-out.end();
+await new Promise((resolve, reject) => { out.once("error", reject); out.end(resolve); });
 console.log(JSON.stringify({ dataDir, outPath, records: count, origin: runtime.origin, professions: catalog.professions.length, requestedMode: modeFlag }));

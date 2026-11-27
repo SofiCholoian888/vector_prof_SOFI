@@ -57,6 +57,7 @@ export interface PostprocessContext {
   inRegion: boolean;
   catalogVersion?: string | null;
   diversify?: boolean;
+  auditDiversification?: "mmr" | "soft";
 }
 
 interface CandidateRecord {
@@ -170,6 +171,12 @@ function diversifyWithMmr(
   return selected;
 }
 
+export function compareProfessionRank(left: string, right: string, ctx: Pick<PostprocessContext, "retrievalScores" | "retrievalRawScores">): number {
+  return (ctx.retrievalScores?.[right] ?? 0) - (ctx.retrievalScores?.[left] ?? 0) ||
+    (ctx.retrievalRawScores?.[right] ?? 0) - (ctx.retrievalRawScores?.[left] ?? 0) ||
+    left.localeCompare(right);
+}
+
 export async function postprocess(
   rawHypotheses: RawHypothesis[],
   ctx: PostprocessContext
@@ -226,7 +233,7 @@ export async function postprocess(
       if (!ctx.inRegion) warnings.add("trials_only_offline_out_of_region");
     }
 
-    const evidence = hypothesis.evidence_refs
+    const evidence = [...new Set(hypothesis.evidence_refs)]
       .map((ref) => ctx.answersMap[ref])
       .filter((answer): answer is NonNullable<typeof answer> => Boolean(answer))
       .map((answer) => ({
@@ -247,7 +254,7 @@ export async function postprocess(
     });
 
     const topTypes = Object.entries(candidate.riasec_profile ?? {})
-      .filter((entry): entry is [string, number] => typeof entry[1] === "number")
+      .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] > 0)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([code]) => {
@@ -298,34 +305,11 @@ export async function postprocess(
     });
   }
 
-  const strengthRank = { strong: 3, moderate: 2, weak: 1 };
-  const confidenceRank = { high: 3, medium: 2, low: 1 };
-  const scoreOf = (id: string) => ctx.retrievalScores?.[id] ?? 0;
-  const rawScoreOf = (id: string) => ctx.retrievalRawScores?.[id] ?? 0;
-  // RRF scores live in a narrow band (about 1/61..1/16), so a fixed absolute
-  // epsilon marked almost every pair as equal and left profession_id to decide
-  // the order. Compare with a share of the best score instead.
-  const bestScore = Math.max(0, ...Object.values(ctx.retrievalScores ?? {}));
-  const tolerance = bestScore * ragConfig.epsilon_relative;
-  enriched.sort((a, b) => {
-    const strengthDiff = strengthRank[b.match_strength] - strengthRank[a.match_strength];
-    if (strengthDiff !== 0) return strengthDiff;
-
-    const scoreDiff = scoreOf(b.profession_id) - scoreOf(a.profession_id);
-    if (Math.abs(scoreDiff) > tolerance) return scoreDiff;
-
-    const rawDiff = rawScoreOf(b.profession_id) - rawScoreOf(a.profession_id);
-    if (rawDiff !== 0) return rawDiff;
-
-    const confidenceDiff =
-      confidenceRank[b.confidence?.level ?? "low"] -
-      confidenceRank[a.confidence?.level ?? "low"];
-    if (confidenceDiff !== 0) return confidenceDiff;
-    return a.profession_id.localeCompare(b.profession_id);
-  });
+  enriched.sort((a, b) => compareProfessionRank(a.profession_id, b.profession_id, ctx));
 
   const maxPerIndustry = 2;
-  const ranked = ragConfig.enable_riasec_mmr && ctx.diversify !== false
+  const ranked = ctx.auditDiversification === "soft" ? enriched
+    : (ctx.auditDiversification === "mmr" || ragConfig.enable_riasec_mmr) && ctx.diversify !== false
     ? diversifyWithMmr(enriched, tierConfig.max_items, ctx.candidatesMap)
     : enriched.filter((hypothesis, index, list) =>
         list
@@ -344,8 +328,7 @@ export async function postprocess(
 
 /**
  * Explanation built only from the answers that produced the hypothesis.
- * Both the LLM path and the retrieval-only path use it, so the visible reason
- * always quotes real input instead of a generic phrase.
+ * The retrieval-only path can show concrete inputs without inferring traits.
  */
 export function evidenceReason(hypothesis: CleanHypothesis): string {
   const selected = [...new Set(hypothesis.evidence.flatMap((item) => item.selected)

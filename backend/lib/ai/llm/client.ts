@@ -8,6 +8,7 @@ export type ChatMessage = {
 export interface ChatResponse {
   text: string;
   usage?: unknown;
+  finishReason?: string;
   latencyMs: number;
   providerCostUsd?: number;
 }

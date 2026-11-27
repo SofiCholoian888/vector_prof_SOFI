@@ -1,0 +1,11 @@
+run,profile,profession,groundedness,relevance,specificity,personalization,naturalness,age_appropriateness,actionability,unsupported_claim,review_note
+E2-full-lexical,mock-6,prof_041,1,1,0,1,0,1,0,0,Дословные ответы и название без объяснения задачи
+E2-full-lexical,mock-6,prof_001,1,0,0,1,0,1,0,0,Любовь к изготовлению вещей в цитате даёт слабую связь с ремонтом оборудования
+E4-full-lexical,mock-6,prof_041,1,1,1,1,1,1,1,0,Электронные схемы связаны с интересом к радиотехнике
+E4-full-lexical,mock-6,prof_011,1,1,1,1,1,1,1,0,Сборка и программирование роботов связаны с инженерным интересом
+E4-full-lexical,mock-6,prof_068,1,1,1,1,1,1,1,0,Настройка автоматических систем связана с электроникой
+E4-full-lexical,control-mechanisms-7,prof_001,1,1,1,1,1,1,0,0,Названа деятельность с чертежами и диагностикой без конкретного упражнения в why
+E4-full-lexical,control-mechanisms-7,prof_003,1,1,1,1,1,1,0,0,Связано с работой на станках но прямой пробы нет
+E4-full-lexical,mixed-screenshot,prof_041,1,1,1,1,1,1,0,0,Рассуждение об электронике ссылается на физику и информатику но ссылка на безопасность отсутствует у этой гипотезы
+E4-full-lexical,mixed-screenshot,prof_010,1,1,1,1,1,1,0,0,Связь интереса к безопасности с защитой данных видна в ответе
+live-crops-lexical-retry,control-crops-10,prof_150,1,1,1,1,1,1,0,1,Фраза идеально подходит преувеличивает уверенность и запрещена после проверки

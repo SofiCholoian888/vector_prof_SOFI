@@ -1,17 +1,17 @@
 {
   "1-4": {
-    "prompt": "nav-1-4@1.0.11",
+    "prompt": "nav-1-4@1.0.12",
     "schema": "tier-1-4@1.0.0",
-    "sha256": "d8cc8599c287ad6a0e52a9e9ab360bb5734babd19e6343d479ae1dc099d7d292"
+    "sha256": "43ecfcd83376ae2d5e3eb18fe31e2f962c0329196c8feb580a386938a0f25978"
   },
   "5-8": {
-    "prompt": "nav-5-8@1.0.2",
+    "prompt": "nav-5-8@1.0.3",
     "schema": "tier-5-8@1.0.0",
-    "sha256": "fc90e1122b88daa7dcdc47d1a34ce5d875daf429449f85799c94550aa8f647d2"
+    "sha256": "f22e04780facb0d069fdebdaa45e1dbc46d288d2e414ab81b3f3c265efcf8509"
   },
   "9-11": {
-    "prompt": "nav-9-11@1.0.2",
+    "prompt": "nav-9-11@1.0.3",
     "schema": "tier-9-11@1.0.0",
-    "sha256": "945564401dd2de80bf8a31a223a3b762d962c485e50d9328c8bdb41bd27178e0"
+    "sha256": "6bf9fbaa909218e97273fa17b5ce2c8d9733d0adbfb52850af378750773cc5ee"
   }
 }

@@ -28,3 +28,9 @@ test("same-origin API proxy remains configured",()=>{
 test("main route uses the shared freeze profession key parser",()=>{
  assert.match(page,/const routeProfession=professionKeyFor\(selectedProfessionId\)/);
 });
+
+test("hypothesis cards display the saved reason and the profile separates raw answers", () => {
+ assert.match(page, /<p>\{h\.reason\|\|/);
+ assert.match(page, /<p>\{result\?\.summary\|\|/);
+ assert.match(page, /<details><summary>Ответы анкеты<\/summary>/);
+});

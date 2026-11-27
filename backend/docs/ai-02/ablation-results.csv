@@ -1,0 +1,218 @@
+factor,profile,variant,changed_top1,jaccard,original,experiment,technical_failure
+skills,mock-1,base,False,1,,,False
+skills,mock-2,base,False,1,,,False
+skills,mock-3,base,False,0.6,prof_130 prof_128 prof_153 prof_136,prof_130 prof_128 prof_031 prof_153,False
+skills,mock-4,base,True,0.6,prof_011 prof_006 prof_130 prof_001,prof_001 prof_011 prof_138 prof_130,False
+skills,mock-5,base,True,0.6,prof_105 prof_062 prof_064 prof_151,prof_062 prof_105 prof_142 prof_064,False
+skills,mock-6,base,False,1.0,prof_041 prof_001 prof_011 prof_068,prof_041 prof_001 prof_011 prof_068,False
+skills,mock-7,base,False,0.6,prof_128 prof_018 prof_133 prof_017,prof_128 prof_133 prof_018 prof_152,False
+skills,mock-8,base,True,0.3333,prof_151 prof_061 prof_150 prof_106,prof_086 prof_072 prof_061 prof_150,False
+skills,mock-9,base,True,1.0,prof_011 prof_006 prof_001 prof_041 prof_002,prof_041 prof_011 prof_001 prof_006 prof_002,False
+skills,mock-10,base,True,0.6667,prof_023 prof_025 prof_092 prof_152 prof_006,prof_025 prof_023 prof_152 prof_092 prof_153,False
+skills,mock-11,base,False,0.4286,prof_128 prof_018 prof_145 prof_061 prof_133,prof_128 prof_018 prof_049 prof_061 prof_031,False
+skills,mock-12,base,True,0.4286,prof_105 prof_062 prof_142 prof_055 prof_086,prof_062 prof_026 prof_142 prof_055 prof_065,False
+skills,mock-13,base,True,1.0,prof_130 prof_001 prof_002 prof_041 prof_011,prof_001 prof_130 prof_002 prof_041 prof_011,False
+skills,mock-14,base,True,0.6667,prof_133 prof_152 prof_017 prof_143 prof_130,prof_130 prof_152 prof_133 prof_049 prof_017,False
+skills,mock-15,base,False,1.0,prof_011 prof_001 prof_002 prof_072 prof_041,prof_011 prof_001 prof_041 prof_072 prof_002,False
+skills,probe-ind_001,base,True,1.0,prof_002 prof_001 prof_072 prof_011 prof_045,prof_001 prof_002 prof_045 prof_072 prof_011,False
+skills,probe-ind_002,base,True,0.25,prof_032 prof_075 prof_002 prof_086 prof_072,prof_031 prof_032 prof_002 prof_001 prof_091,False
+skills,probe-ind_003,base,False,0.6667,prof_006 prof_138 prof_068 prof_041 prof_020,prof_006 prof_138 prof_001 prof_020 prof_068,False
+skills,probe-ind_004,base,False,0.4286,prof_012 prof_064 prof_027 prof_063 prof_105,prof_012 prof_013 prof_027 prof_063 prof_045,False
+skills,probe-ind_005,base,False,0.6667,prof_018 prof_128 prof_051 prof_017 prof_092,prof_018 prof_129 prof_092 prof_017 prof_051,False
+skills,probe-ind_006,base,True,0.6667,prof_078 prof_112 prof_036 prof_079 prof_026,prof_112 prof_078 prof_036 prof_001 prof_026,False
+skills,probe-ind_007,base,False,0.6667,prof_091 prof_044 prof_023 prof_072 prof_134,prof_091 prof_044 prof_023 prof_072 prof_001,False
+skills,probe-ind_008,base,False,0.6667,prof_040 prof_005 prof_071 prof_074 prof_009,prof_040 prof_005 prof_071 prof_046 prof_074,False
+skills,probe-ind_009,base,False,0.6667,prof_116 prof_026 prof_065 prof_055 prof_061,prof_116 prof_026 prof_065 prof_055 prof_001,False
+skills,probe-ind_010,base,False,0.6667,prof_024 prof_025 prof_035 prof_093 prof_023,prof_024 prof_025 prof_035 prof_093 prof_007,False
+skills,probe-ind_011,base,True,0.4286,prof_023 prof_022 prof_015 prof_024 prof_043,prof_048 prof_022 prof_043 prof_008 prof_024,False
+skills,probe-ind_012,base,False,0.4286,prof_021 prof_020 prof_022 prof_138 prof_006,prof_021 prof_020 prof_002 prof_006 prof_031,False
+skills,probe-ind_013,base,False,0.6667,prof_133 prof_149 prof_134 prof_130 prof_138,prof_133 prof_149 prof_134 prof_130 prof_031,False
+skills,probe-ind_014,base,False,0.6667,prof_049 prof_093 prof_010 prof_152 prof_094,prof_049 prof_093 prof_010 prof_094 prof_047,False
+skills,probe-ind_015,base,False,1.0,prof_150 prof_106 prof_086 prof_151 prof_062,prof_150 prof_106 prof_151 prof_062 prof_086,False
+skills,probe-ind_016,base,False,0.6667,prof_151 prof_061 prof_090 prof_086 prof_108,prof_151 prof_090 prof_061 prof_086 prof_062,False
+mmr,mock-1,base,False,1,,,False
+mmr,mock-2,base,False,1,,,False
+mmr,mock-3,base,False,0.3333,prof_130 prof_128 prof_153 prof_136,prof_130 prof_153 prof_129 prof_022,False
+mmr,mock-4,base,False,0.6,prof_011 prof_006 prof_130 prof_001,prof_011 prof_006 prof_130 prof_022,False
+mmr,mock-5,base,False,0.3333,prof_105 prof_062 prof_064 prof_151,prof_105 prof_064 prof_063 prof_130,False
+mmr,mock-6,base,False,0.1429,prof_041 prof_001 prof_011 prof_068,prof_041 prof_130 prof_031 prof_007,False
+mmr,mock-7,base,False,0.3333,prof_128 prof_018 prof_133 prof_017,prof_128 prof_133 prof_023 prof_129,False
+mmr,mock-8,base,False,0.3333,prof_151 prof_061 prof_150 prof_106,prof_151 prof_130 prof_150 prof_020,False
+mmr,mock-9,base,False,0.4286,prof_011 prof_006 prof_001 prof_041 prof_002,prof_011 prof_006 prof_130 prof_002 prof_129,False
+mmr,mock-10,base,False,0.6667,prof_023 prof_025 prof_092 prof_152 prof_006,prof_023 prof_025 prof_130 prof_092 prof_152,False
+mmr,mock-11,base,False,0.25,prof_128 prof_018 prof_145 prof_061 prof_133,prof_128 prof_061 prof_146 prof_049 prof_052,False
+mmr,mock-12,base,False,0.25,prof_105 prof_062 prof_142 prof_055 prof_086,prof_105 prof_143 prof_023 prof_055 prof_020,False
+mmr,mock-13,base,False,0.4286,prof_130 prof_001 prof_002 prof_041 prof_011,prof_130 prof_001 prof_023 prof_002 prof_148,False
+mmr,mock-14,base,False,0.6667,prof_133 prof_152 prof_017 prof_143 prof_130,prof_133 prof_152 prof_017 prof_093 prof_143,False
+mmr,mock-15,base,False,0.25,prof_011 prof_001 prof_002 prof_072 prof_041,prof_011 prof_130 prof_002 prof_010 prof_020,False
+mmr,probe-ind_001,base,False,0.4286,prof_002 prof_001 prof_072 prof_011 prof_045,prof_002 prof_001 prof_138 prof_045 prof_101,False
+mmr,probe-ind_002,base,False,0.6667,prof_032 prof_075 prof_002 prof_086 prof_072,prof_032 prof_075 prof_006 prof_002 prof_086,False
+mmr,probe-ind_003,base,False,0.6667,prof_006 prof_138 prof_068 prof_041 prof_020,prof_006 prof_138 prof_068 prof_020 prof_142,False
+mmr,probe-ind_004,base,False,0.6667,prof_012 prof_064 prof_027 prof_063 prof_105,prof_012 prof_064 prof_132 prof_063 prof_027,False
+mmr,probe-ind_005,base,False,0.25,prof_018 prof_128 prof_051 prof_017 prof_092,prof_018 prof_129 prof_052 prof_133 prof_092,False
+mmr,probe-ind_006,base,False,0.6667,prof_078 prof_112 prof_036 prof_079 prof_026,prof_078 prof_112 prof_026 prof_079 prof_001,False
+mmr,probe-ind_007,base,False,0.4286,prof_091 prof_044 prof_023 prof_072 prof_134,prof_091 prof_044 prof_023 prof_092 prof_006,False
+mmr,probe-ind_008,base,False,0.1429,prof_040 prof_005 prof_071 prof_074 prof_009,prof_040 prof_004 prof_151,False
+mmr,probe-ind_009,base,False,0.4286,prof_116 prof_026 prof_065 prof_055 prof_061,prof_116 prof_026 prof_052 prof_064 prof_055,False
+mmr,probe-ind_010,base,False,0.6667,prof_024 prof_025 prof_035 prof_093 prof_023,prof_024 prof_025 prof_023 prof_035 prof_034,False
+mmr,probe-ind_011,base,False,0.4286,prof_023 prof_022 prof_015 prof_024 prof_043,prof_023 prof_022 prof_050 prof_007 prof_024,False
+mmr,probe-ind_012,base,False,0.4286,prof_021 prof_020 prof_022 prof_138 prof_006,prof_021 prof_022 prof_072 prof_006 prof_129,False
+mmr,probe-ind_013,base,False,0.6667,prof_133 prof_149 prof_134 prof_130 prof_138,prof_133 prof_149 prof_134 prof_130 prof_006,False
+mmr,probe-ind_014,base,False,0.6667,prof_049 prof_093 prof_010 prof_152 prof_094,prof_049 prof_093 prof_010 prof_050 prof_152,False
+mmr,probe-ind_015,base,False,0.2857,prof_150 prof_106 prof_086 prof_151 prof_062,prof_150 prof_102 prof_086 prof_060,False
+mmr,probe-ind_016,base,False,0.125,prof_151 prof_061 prof_090 prof_086 prof_108,prof_151 prof_103 prof_133 prof_089,False
+soft,mock-1,base,False,1,,,False
+soft,mock-2,base,False,1,,,False
+soft,mock-3,base,False,0.6,prof_130 prof_128 prof_153 prof_136,prof_130 prof_128 prof_153 prof_129,False
+soft,mock-4,base,False,0.3333,prof_011 prof_006 prof_130 prof_001,prof_011 prof_006 prof_138 prof_072,False
+soft,mock-5,base,False,1.0,prof_105 prof_062 prof_064 prof_151,prof_105 prof_062 prof_064 prof_151,False
+soft,mock-6,base,False,1.0,prof_041 prof_001 prof_011 prof_068,prof_041 prof_001 prof_011 prof_068,False
+soft,mock-7,base,False,0.6,prof_128 prof_018 prof_133 prof_017,prof_128 prof_018 prof_143 prof_133,False
+soft,mock-8,base,False,1.0,prof_151 prof_061 prof_150 prof_106,prof_151 prof_061 prof_150 prof_106,False
+soft,mock-9,base,False,1.0,prof_011 prof_006 prof_001 prof_041 prof_002,prof_011 prof_006 prof_001 prof_041 prof_002,False
+soft,mock-10,base,False,1.0,prof_023 prof_025 prof_092 prof_152 prof_006,prof_023 prof_025 prof_092 prof_152 prof_006,False
+soft,mock-11,base,False,0.25,prof_128 prof_018 prof_145 prof_061 prof_133,prof_128 prof_018 prof_146 prof_143 prof_130,False
+soft,mock-12,base,False,1.0,prof_105 prof_062 prof_142 prof_055 prof_086,prof_105 prof_062 prof_142 prof_055 prof_086,False
+soft,mock-13,base,False,1.0,prof_130 prof_001 prof_002 prof_041 prof_011,prof_130 prof_001 prof_002 prof_041 prof_011,False
+soft,mock-14,base,False,0.6667,prof_133 prof_152 prof_017 prof_143 prof_130,prof_133 prof_152 prof_017 prof_131 prof_143,False
+soft,mock-15,base,False,1.0,prof_011 prof_001 prof_002 prof_072 prof_041,prof_011 prof_001 prof_002 prof_072 prof_041,False
+soft,probe-ind_001,base,False,1.0,prof_002 prof_001 prof_072 prof_011 prof_045,prof_002 prof_001 prof_072 prof_011 prof_045,False
+soft,probe-ind_002,base,False,0.25,prof_032 prof_075 prof_002 prof_086 prof_072,prof_032 prof_075 prof_031 prof_154 prof_084,False
+soft,probe-ind_003,base,False,0.25,prof_006 prof_138 prof_068 prof_041 prof_020,prof_006 prof_138 prof_008 prof_007 prof_010,False
+soft,probe-ind_004,base,False,0.4286,prof_012 prof_064 prof_027 prof_063 prof_105,prof_012 prof_064 prof_013 prof_015 prof_027,False
+soft,probe-ind_005,base,False,0.25,prof_018 prof_128 prof_051 prof_017 prof_092,prof_018 prof_128 prof_129 prof_143 prof_019,False
+soft,probe-ind_006,base,False,0.25,prof_078 prof_112 prof_036 prof_079 prof_026,prof_078 prof_112 prof_114 prof_158 prof_077,False
+soft,probe-ind_007,base,False,0.4286,prof_091 prof_044 prof_023 prof_072 prof_134,prof_091 prof_044 prof_043 prof_023 prof_073,False
+soft,probe-ind_008,base,False,0.4286,prof_040 prof_005 prof_071 prof_074 prof_009,prof_040 prof_005 prof_004 prof_088 prof_071,False
+soft,probe-ind_009,base,False,0.4286,prof_116 prof_026 prof_065 prof_055 prof_061,prof_116 prof_026 prof_065 prof_105 prof_062,False
+soft,probe-ind_010,base,False,1.0,prof_024 prof_025 prof_035 prof_093 prof_023,prof_024 prof_025 prof_035 prof_093 prof_023,False
+soft,probe-ind_011,base,False,0.25,prof_023 prof_022 prof_015 prof_024 prof_043,prof_023 prof_022 prof_048 prof_092 prof_096,False
+soft,probe-ind_012,base,False,1.0,prof_021 prof_020 prof_022 prof_138 prof_006,prof_021 prof_020 prof_022 prof_138 prof_006,False
+soft,probe-ind_013,base,False,0.25,prof_133 prof_149 prof_134 prof_130 prof_138,prof_133 prof_149 prof_136 prof_135 prof_148,False
+soft,probe-ind_014,base,False,1.0,prof_049 prof_093 prof_010 prof_152 prof_094,prof_049 prof_093 prof_010 prof_152 prof_094,False
+soft,probe-ind_015,base,False,0.4286,prof_150 prof_106 prof_086 prof_151 prof_062,prof_150 prof_106 prof_108 prof_102 prof_086,False
+soft,probe-ind_016,base,False,0.4286,prof_151 prof_061 prof_090 prof_086 prof_108,prof_151 prof_061 prof_090 prof_107 prof_103,False
+riasec,mock-1,base,False,1,,,False
+riasec,mock-2,base,False,1,,,False
+riasec,mock-3,base,False,1.0,prof_130 prof_128 prof_153 prof_136,prof_130 prof_128 prof_153 prof_136,False
+riasec,mock-4,base,False,1.0,prof_011 prof_006 prof_130 prof_001,prof_011 prof_006 prof_130 prof_001,False
+riasec,mock-5,base,False,1.0,prof_105 prof_062 prof_064 prof_151,prof_105 prof_062 prof_064 prof_151,False
+riasec,mock-6,base,False,1.0,prof_041 prof_001 prof_011 prof_068,prof_041 prof_001 prof_011 prof_068,False
+riasec,mock-7,base,False,1.0,prof_128 prof_018 prof_133 prof_017,prof_128 prof_018 prof_133 prof_017,False
+riasec,mock-8,base,False,1.0,prof_151 prof_061 prof_150 prof_106,prof_151 prof_061 prof_150 prof_106,False
+riasec,mock-9,base,False,1.0,prof_011 prof_006 prof_001 prof_041 prof_002,prof_011 prof_006 prof_001 prof_041 prof_002,False
+riasec,mock-10,base,False,1.0,prof_023 prof_025 prof_092 prof_152 prof_006,prof_023 prof_025 prof_092 prof_152 prof_006,False
+riasec,mock-11,base,False,1.0,prof_128 prof_018 prof_145 prof_061 prof_133,prof_128 prof_018 prof_145 prof_061 prof_133,False
+riasec,mock-12,base,False,1.0,prof_105 prof_062 prof_142 prof_055 prof_086,prof_105 prof_062 prof_142 prof_055 prof_086,False
+riasec,mock-13,base,False,1.0,prof_130 prof_001 prof_002 prof_041 prof_011,prof_130 prof_001 prof_002 prof_041 prof_011,False
+riasec,mock-14,base,False,1.0,prof_133 prof_152 prof_017 prof_143 prof_130,prof_133 prof_152 prof_017 prof_143 prof_130,False
+riasec,mock-15,base,False,1.0,prof_011 prof_001 prof_002 prof_072 prof_041,prof_011 prof_001 prof_002 prof_072 prof_041,False
+riasec,probe-ind_001,base,False,1.0,prof_002 prof_001 prof_072 prof_011 prof_045,prof_002 prof_001 prof_072 prof_011 prof_045,False
+riasec,probe-ind_002,base,False,1.0,prof_032 prof_075 prof_002 prof_086 prof_072,prof_032 prof_075 prof_002 prof_086 prof_072,False
+riasec,probe-ind_003,base,False,1.0,prof_006 prof_138 prof_068 prof_041 prof_020,prof_006 prof_138 prof_068 prof_041 prof_020,False
+riasec,probe-ind_004,base,False,1.0,prof_012 prof_064 prof_027 prof_063 prof_105,prof_012 prof_064 prof_027 prof_063 prof_105,False
+riasec,probe-ind_005,base,False,1.0,prof_018 prof_128 prof_051 prof_017 prof_092,prof_018 prof_128 prof_051 prof_017 prof_092,False
+riasec,probe-ind_006,base,False,1.0,prof_078 prof_112 prof_036 prof_079 prof_026,prof_078 prof_112 prof_036 prof_079 prof_026,False
+riasec,probe-ind_007,base,False,1.0,prof_091 prof_044 prof_023 prof_072 prof_134,prof_091 prof_044 prof_023 prof_072 prof_134,False
+riasec,probe-ind_008,base,False,1.0,prof_040 prof_005 prof_071 prof_074 prof_009,prof_040 prof_005 prof_071 prof_074 prof_009,False
+riasec,probe-ind_009,base,False,1.0,prof_116 prof_026 prof_065 prof_055 prof_061,prof_116 prof_026 prof_065 prof_055 prof_061,False
+riasec,probe-ind_010,base,False,1.0,prof_024 prof_025 prof_035 prof_093 prof_023,prof_024 prof_025 prof_035 prof_093 prof_023,False
+riasec,probe-ind_011,base,False,1.0,prof_023 prof_022 prof_015 prof_024 prof_043,prof_023 prof_022 prof_015 prof_024 prof_043,False
+riasec,probe-ind_012,base,False,1.0,prof_021 prof_020 prof_022 prof_138 prof_006,prof_021 prof_020 prof_022 prof_138 prof_006,False
+riasec,probe-ind_013,base,False,1.0,prof_133 prof_149 prof_134 prof_130 prof_138,prof_133 prof_149 prof_134 prof_130 prof_138,False
+riasec,probe-ind_014,base,False,1.0,prof_049 prof_093 prof_010 prof_152 prof_094,prof_049 prof_093 prof_010 prof_152 prof_094,False
+riasec,probe-ind_015,base,False,1.0,prof_150 prof_106 prof_086 prof_151 prof_062,prof_150 prof_106 prof_086 prof_151 prof_062,False
+riasec,probe-ind_016,base,False,1.0,prof_151 prof_061 prof_090 prof_086 prof_108,prof_151 prof_061 prof_090 prof_086 prof_108,False
+market,mock-1,base,False,1,,,False
+market,mock-2,base,False,1,,,False
+market,mock-3,base,False,1.0,prof_130 prof_128 prof_153 prof_136,prof_130 prof_128 prof_153 prof_136,False
+market,mock-4,base,False,1.0,prof_011 prof_006 prof_130 prof_001,prof_011 prof_006 prof_130 prof_001,False
+market,mock-5,base,False,1.0,prof_105 prof_062 prof_064 prof_151,prof_105 prof_062 prof_064 prof_151,False
+market,mock-6,base,False,1.0,prof_041 prof_001 prof_011 prof_068,prof_041 prof_001 prof_011 prof_068,False
+market,mock-7,base,False,1.0,prof_128 prof_018 prof_133 prof_017,prof_128 prof_018 prof_133 prof_017,False
+market,mock-8,base,False,1.0,prof_151 prof_061 prof_150 prof_106,prof_151 prof_061 prof_150 prof_106,False
+market,mock-9,base,False,1.0,prof_011 prof_006 prof_001 prof_041 prof_002,prof_011 prof_006 prof_001 prof_041 prof_002,False
+market,mock-10,base,False,1.0,prof_023 prof_025 prof_092 prof_152 prof_006,prof_023 prof_025 prof_092 prof_152 prof_006,False
+market,mock-11,base,False,1.0,prof_128 prof_018 prof_145 prof_061 prof_133,prof_128 prof_018 prof_145 prof_061 prof_133,False
+market,mock-12,base,False,1.0,prof_105 prof_062 prof_142 prof_055 prof_086,prof_105 prof_062 prof_142 prof_055 prof_086,False
+market,mock-13,base,False,1.0,prof_130 prof_001 prof_002 prof_041 prof_011,prof_130 prof_001 prof_002 prof_041 prof_011,False
+market,mock-14,base,False,1.0,prof_133 prof_152 prof_017 prof_143 prof_130,prof_133 prof_152 prof_017 prof_143 prof_130,False
+market,mock-15,base,False,1.0,prof_011 prof_001 prof_002 prof_072 prof_041,prof_011 prof_001 prof_002 prof_072 prof_041,False
+market,probe-ind_001,base,False,1.0,prof_002 prof_001 prof_072 prof_011 prof_045,prof_002 prof_001 prof_072 prof_011 prof_045,False
+market,probe-ind_002,base,False,1.0,prof_032 prof_075 prof_002 prof_086 prof_072,prof_032 prof_075 prof_002 prof_086 prof_072,False
+market,probe-ind_003,base,False,1.0,prof_006 prof_138 prof_068 prof_041 prof_020,prof_006 prof_138 prof_068 prof_041 prof_020,False
+market,probe-ind_004,base,False,1.0,prof_012 prof_064 prof_027 prof_063 prof_105,prof_012 prof_064 prof_027 prof_063 prof_105,False
+market,probe-ind_005,base,False,1.0,prof_018 prof_128 prof_051 prof_017 prof_092,prof_018 prof_128 prof_051 prof_017 prof_092,False
+market,probe-ind_006,base,False,1.0,prof_078 prof_112 prof_036 prof_079 prof_026,prof_078 prof_112 prof_036 prof_079 prof_026,False
+market,probe-ind_007,base,False,1.0,prof_091 prof_044 prof_023 prof_072 prof_134,prof_091 prof_044 prof_023 prof_072 prof_134,False
+market,probe-ind_008,base,False,1.0,prof_040 prof_005 prof_071 prof_074 prof_009,prof_040 prof_005 prof_071 prof_074 prof_009,False
+market,probe-ind_009,base,False,1.0,prof_116 prof_026 prof_065 prof_055 prof_061,prof_116 prof_026 prof_065 prof_055 prof_061,False
+market,probe-ind_010,base,False,1.0,prof_024 prof_025 prof_035 prof_093 prof_023,prof_024 prof_025 prof_035 prof_093 prof_023,False
+market,probe-ind_011,base,False,1.0,prof_023 prof_022 prof_015 prof_024 prof_043,prof_023 prof_022 prof_015 prof_024 prof_043,False
+market,probe-ind_012,base,False,1.0,prof_021 prof_020 prof_022 prof_138 prof_006,prof_021 prof_020 prof_022 prof_138 prof_006,False
+market,probe-ind_013,base,False,1.0,prof_133 prof_149 prof_134 prof_130 prof_138,prof_133 prof_149 prof_134 prof_130 prof_138,False
+market,probe-ind_014,base,False,1.0,prof_049 prof_093 prof_010 prof_152 prof_094,prof_049 prof_093 prof_010 prof_152 prof_094,False
+market,probe-ind_015,base,False,1.0,prof_150 prof_106 prof_086 prof_151 prof_062,prof_150 prof_106 prof_086 prof_151 prof_062,False
+market,probe-ind_016,base,False,1.0,prof_151 prof_061 prof_090 prof_086 prof_108,prof_151 prof_061 prof_090 prof_086 prof_108,False
+mean2,mock-1,base,False,1,,,False
+mean2,mock-2,base,False,1,,,False
+mean2,mock-3,base,False,0.3333,prof_130 prof_128 prof_153 prof_136,prof_130 prof_153 prof_129 prof_149,False
+mean2,mock-4,base,True,0.6,prof_011 prof_006 prof_130 prof_001,prof_006 prof_011 prof_130 prof_142,False
+mean2,mock-5,base,False,0.6,prof_105 prof_062 prof_064 prof_151,prof_105 prof_151 prof_062 prof_061,False
+mean2,mock-6,base,False,1.0,prof_041 prof_001 prof_011 prof_068,prof_041 prof_001 prof_011 prof_068,False
+mean2,mock-7,base,False,0.3333,prof_128 prof_018 prof_133 prof_017,prof_128 prof_143 prof_133 prof_095,False
+mean2,mock-8,base,True,0.1429,prof_151 prof_061 prof_150 prof_106,prof_086 prof_062 prof_151 prof_108,False
+mean2,mock-9,base,False,1.0,prof_011 prof_006 prof_001 prof_041 prof_002,prof_011 prof_006 prof_041 prof_001 prof_002,False
+mean2,mock-10,base,False,0.6667,prof_023 prof_025 prof_092 prof_152 prof_006,prof_023 prof_025 prof_071 prof_092 prof_152,False
+mean2,mock-11,base,True,1.0,prof_128 prof_018 prof_145 prof_061 prof_133,prof_018 prof_128 prof_145 prof_061 prof_133,False
+mean2,mock-12,base,False,0.6667,prof_105 prof_062 prof_142 prof_055 prof_086,prof_105 prof_062 prof_142 prof_055 prof_061,False
+mean2,mock-13,base,True,1.0,prof_130 prof_001 prof_002 prof_041 prof_011,prof_001 prof_130 prof_011 prof_041 prof_002,False
+mean2,mock-14,base,False,0.4286,prof_133 prof_152 prof_017 prof_143 prof_130,prof_133 prof_017 prof_130 prof_131 prof_128,False
+mean2,mock-15,base,False,1.0,prof_011 prof_001 prof_002 prof_072 prof_041,prof_011 prof_072 prof_001 prof_041 prof_002,False
+mean2,probe-ind_001,base,True,1.0,prof_002 prof_001 prof_072 prof_011 prof_045,prof_001 prof_002 prof_045 prof_011 prof_072,False
+mean2,probe-ind_002,base,False,0.4286,prof_032 prof_075 prof_002 prof_086 prof_072,prof_032 prof_031 prof_002 prof_086 prof_060,False
+mean2,probe-ind_003,base,False,1.0,prof_006 prof_138 prof_068 prof_041 prof_020,prof_006 prof_138 prof_068 prof_020 prof_041,False
+mean2,probe-ind_004,base,False,1.0,prof_012 prof_064 prof_027 prof_063 prof_105,prof_012 prof_064 prof_027 prof_063 prof_105,False
+mean2,probe-ind_005,base,False,1.0,prof_018 prof_128 prof_051 prof_017 prof_092,prof_018 prof_128 prof_051 prof_017 prof_092,False
+mean2,probe-ind_006,base,False,0.4286,prof_078 prof_112 prof_036 prof_079 prof_026,prof_078 prof_077 prof_036 prof_026 prof_073,False
+mean2,probe-ind_007,base,True,0.4286,prof_091 prof_044 prof_023 prof_072 prof_134,prof_043 prof_044 prof_023 prof_072 prof_047,False
+mean2,probe-ind_008,base,True,0.4286,prof_040 prof_005 prof_071 prof_074 prof_009,prof_005 prof_040 prof_071 prof_046 prof_089,False
+mean2,probe-ind_009,base,False,0.6667,prof_116 prof_026 prof_065 prof_055 prof_061,prof_116 prof_026 prof_065 prof_055 prof_041,False
+mean2,probe-ind_010,base,False,1.0,prof_024 prof_025 prof_035 prof_093 prof_023,prof_024 prof_025 prof_023 prof_035 prof_093,False
+mean2,probe-ind_011,base,False,0.6667,prof_023 prof_022 prof_015 prof_024 prof_043,prof_023 prof_022 prof_015 prof_043 prof_050,False
+mean2,probe-ind_012,base,False,0.6667,prof_021 prof_020 prof_022 prof_138 prof_006,prof_021 prof_020 prof_022 prof_153 prof_006,False
+mean2,probe-ind_013,base,True,0.4286,prof_133 prof_149 prof_134 prof_130 prof_138,prof_136 prof_149 prof_130 prof_134 prof_022,False
+mean2,probe-ind_014,base,False,1.0,prof_049 prof_093 prof_010 prof_152 prof_094,prof_049 prof_093 prof_152 prof_094 prof_010,False
+mean2,probe-ind_015,base,False,1.0,prof_150 prof_106 prof_086 prof_151 prof_062,prof_150 prof_106 prof_086 prof_151 prof_062,False
+mean2,probe-ind_016,base,False,1.0,prof_151 prof_061 prof_090 prof_086 prof_108,prof_151 prof_090 prof_061 prof_108 prof_086,False
+dedup,mock-1,base,False,1,,,False
+dedup,mock-2,base,False,1,,,False
+dedup,mock-3,base,False,0.6,prof_130 prof_128 prof_153 prof_136,prof_130 prof_128 prof_153 prof_051,False
+dedup,mock-4,base,False,0.6,prof_011 prof_006 prof_130 prof_001,prof_011 prof_138 prof_130 prof_001,False
+dedup,mock-5,base,False,0.6,prof_105 prof_062 prof_064 prof_151,prof_105 prof_062 prof_061 prof_151,False
+dedup,mock-6,base,False,1.0,prof_041 prof_001 prof_011 prof_068,prof_041 prof_001 prof_011 prof_068,False
+dedup,mock-7,base,False,0.6,prof_128 prof_018 prof_133 prof_017,prof_128 prof_018 prof_133 prof_095,False
+dedup,mock-8,base,False,0.6,prof_151 prof_061 prof_150 prof_106,prof_151 prof_061 prof_107 prof_150,False
+dedup,mock-9,base,False,1.0,prof_011 prof_006 prof_001 prof_041 prof_002,prof_011 prof_006 prof_041 prof_001 prof_002,False
+dedup,mock-10,base,False,0.6667,prof_023 prof_025 prof_092 prof_152 prof_006,prof_023 prof_025 prof_092 prof_133 prof_152,False
+dedup,mock-11,base,False,1.0,prof_128 prof_018 prof_145 prof_061 prof_133,prof_128 prof_018 prof_145 prof_061 prof_133,False
+dedup,mock-12,base,False,1.0,prof_105 prof_062 prof_142 prof_055 prof_086,prof_105 prof_062 prof_142 prof_055 prof_086,False
+dedup,mock-13,base,True,1.0,prof_130 prof_001 prof_002 prof_041 prof_011,prof_001 prof_130 prof_011 prof_002 prof_041,False
+dedup,mock-14,base,False,1.0,prof_133 prof_152 prof_017 prof_143 prof_130,prof_133 prof_143 prof_130 prof_152 prof_017,False
+dedup,mock-15,base,False,1.0,prof_011 prof_001 prof_002 prof_072 prof_041,prof_011 prof_001 prof_041 prof_072 prof_002,False
+dedup,probe-ind_001,base,False,1.0,prof_002 prof_001 prof_072 prof_011 prof_045,prof_002 prof_001 prof_072 prof_011 prof_045,False
+dedup,probe-ind_002,base,False,1.0,prof_032 prof_075 prof_002 prof_086 prof_072,prof_032 prof_075 prof_002 prof_086 prof_072,False
+dedup,probe-ind_003,base,False,1.0,prof_006 prof_138 prof_068 prof_041 prof_020,prof_006 prof_138 prof_068 prof_041 prof_020,False
+dedup,probe-ind_004,base,False,1.0,prof_012 prof_064 prof_027 prof_063 prof_105,prof_012 prof_064 prof_027 prof_063 prof_105,False
+dedup,probe-ind_005,base,False,1.0,prof_018 prof_128 prof_051 prof_017 prof_092,prof_018 prof_128 prof_051 prof_017 prof_092,False
+dedup,probe-ind_006,base,False,1.0,prof_078 prof_112 prof_036 prof_079 prof_026,prof_078 prof_112 prof_036 prof_079 prof_026,False
+dedup,probe-ind_007,base,False,1.0,prof_091 prof_044 prof_023 prof_072 prof_134,prof_091 prof_044 prof_023 prof_072 prof_134,False
+dedup,probe-ind_008,base,False,1.0,prof_040 prof_005 prof_071 prof_074 prof_009,prof_040 prof_005 prof_071 prof_074 prof_009,False
+dedup,probe-ind_009,base,False,1.0,prof_116 prof_026 prof_065 prof_055 prof_061,prof_116 prof_026 prof_065 prof_055 prof_061,False
+dedup,probe-ind_010,base,False,1.0,prof_024 prof_025 prof_035 prof_093 prof_023,prof_024 prof_025 prof_035 prof_093 prof_023,False
+dedup,probe-ind_011,base,False,1.0,prof_023 prof_022 prof_015 prof_024 prof_043,prof_023 prof_022 prof_015 prof_024 prof_043,False
+dedup,probe-ind_012,base,False,1.0,prof_021 prof_020 prof_022 prof_138 prof_006,prof_021 prof_020 prof_022 prof_138 prof_006,False
+dedup,probe-ind_013,base,False,1.0,prof_133 prof_149 prof_134 prof_130 prof_138,prof_133 prof_149 prof_134 prof_130 prof_138,False
+dedup,probe-ind_014,base,False,1.0,prof_049 prof_093 prof_010 prof_152 prof_094,prof_049 prof_093 prof_010 prof_152 prof_094,False
+dedup,probe-ind_015,base,False,1.0,prof_150 prof_106 prof_086 prof_151 prof_062,prof_150 prof_106 prof_086 prof_151 prof_062,False
+dedup,probe-ind_016,base,False,1.0,prof_151 prof_061 prof_090 prof_086 prof_108,prof_151 prof_061 prof_090 prof_086 prof_108,False

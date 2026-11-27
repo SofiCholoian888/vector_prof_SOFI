@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 const root=process.cwd();
 const manifestPath=path.join(root,"prompts/manifest.json");
 const manifest=JSON.parse(await fs.readFile(manifestPath,"utf8"));
-const common=await fs.readFile(path.join(root,"prompts/common/1.0.2.md"),"utf8");
+const common=await fs.readFile(path.join(root,"prompts/common/1.0.3.md"),"utf8");
 for(const tier of ["1-4","5-8","9-11"]){
  const entry=manifest[tier];
  const [name,version]=entry.prompt.split("@");

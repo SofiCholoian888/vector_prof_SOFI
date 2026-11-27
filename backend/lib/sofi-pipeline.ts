@@ -6,19 +6,20 @@ import promptManifest from "@/prompts/manifest.json" with { type: "json" };
 import { estimateAgeFromGrade, isTrialEligibleForGrade } from "@/lib/ai/age";
 import { getFromCache, makeCacheKey, setCache } from "@/lib/ai/cache";
 import { type NormalizedCatalog, type NormalizedProfession } from "@/lib/ai/catalog";
-import { buildDossier } from "@/lib/ai/dossier";
+import { buildDossier, careerAnswers } from "@/lib/ai/dossier";
 import { buildFallbackResponse } from "@/lib/ai/fallback";
 import { buildElementaryTargets } from "@/lib/ai/elementary";
 import { EmbeddingQueryConfigError, embeddingQueryVersion, readEmbeddingQueryMode } from "@/lib/ai/embedding-query";
 import { AiConfigError, assertNoMockEmbeddingsInProduction } from "@/lib/ai/runtime-guards";
 import { generateValidatedResponse } from "@/lib/ai/generate";
 import { OpenAICompatibleClient } from "@/lib/ai/llm/openaiCompatible";
-import { evidenceReason, postprocess, type PostprocessContext } from "@/lib/ai/postprocess";
+import { postprocess, type PostprocessContext } from "@/lib/ai/postprocess";
 import { buildPrompt } from "@/lib/ai/prompts";
-import { retrieve } from "@/lib/ai/retrieval";
+import { retrieve, type RetrievalResult } from "@/lib/ai/retrieval";
 import { loadRuntimeCatalog } from "@/lib/runtime-catalog";
 import { extractDigitWhitelist, type ValidationContext } from "@/lib/ai/validate";
 
+import type { LLMClient } from "./ai/llm/client";
 import type { PreparedSofiInput, SofiModuleResult } from "./sofi-adapter.ts";
 
 export type SofiPipelineInput = {
@@ -72,14 +73,25 @@ function isSofiResult(value: unknown): value is SofiModuleResult {
   );
 }
 
+export type SofiAudit = {
+  onRetrieval?: (retrieval: RetrievalResult) => void;
+  onGeneration?: (event: Record<string, unknown>) => void;
+  retrievalOnly?: boolean;
+  diversification?: PostprocessContext["auditDiversification"];
+  client?: LLMClient;
+  maxTokens?: number;
+};
+
 export async function runSofiPipeline(
-  input: SofiPipelineInput
+  input: SofiPipelineInput,
+  audit?: SofiAudit
 ): Promise<SofiModuleResult> {
   assertNoMockEmbeddingsInProduction();
   const { prepared } = input;
   const grade = prepared.student.school_grade;
   const dossier = buildDossier(prepared.rawAnswers, prepared.student);
   const tier = dossier.student.tier;
+  const signalAnswers = careerAnswers(dossier);
   const catalog = loadRuntimeCatalog().catalog;
   if (catalog.schema_version !== "hybrid_v2") {
     throw new Error(`Ожидалась схема каталога hybrid_v2, получена ${catalog.schema_version}`);
@@ -118,6 +130,7 @@ export async function runSofiPipeline(
     retrieval = emptyRetrieval("retrieval_failed");
   }
 
+  audit?.onRetrieval?.(retrieval);
   const catalogVersion = catalog.version;
   const promptVersion = promptManifest[tier].prompt;
   const configVersion =
@@ -126,19 +139,20 @@ export async function runSofiPipeline(
     // Разные режимы инструкции не должны переиспользовать кэш друг друга.
     `+emb-${embeddingQueryVersion(readEmbeddingQueryMode())}`;
   const cacheKey = makeCacheKey(
-    [dossier, retrieval],
+    [dossier, { ...retrieval, embeddingDurationMs: undefined }],
     promptVersion,
     catalogVersion,
     configVersion
   );
   const cached = getFromCache(cacheKey);
-  if (isSofiResult(cached)) {
+  if (!audit && isSofiResult(cached)) {
     return cached;
   }
 
   const postprocessContext: PostprocessContext = {
     tier,
-    dossierRefs: new Set(dossier.answers.map((answer) => answer.ref)),
+    auditDiversification: audit?.diversification,
+    dossierRefs: new Set(signalAnswers.map((answer) => answer.ref)),
     answersMap,
     candidatesMap: candidates,
     industriesMap,
@@ -155,8 +169,10 @@ export async function runSofiPipeline(
   let result: SofiModuleResult;
   let mode: "llm" | "retrieval_only" = "llm";
   let attempts = 0;
+  const juniorWhy = new Map<string, string>();
 
-  if (dossier.answers.length < agePolicy.min_signal_answers) {
+  if (audit?.retrievalOnly || signalAnswers.length < agePolicy.min_signal_answers) {
+    audit?.onGeneration?.({ status: signalAnswers.length < agePolicy.min_signal_answers ? "low_signal" : "retrieval_only_requested" });
     mode = "retrieval_only";
     result = await buildFallbackResponse({
       dossier,
@@ -170,9 +186,14 @@ export async function runSofiPipeline(
       const candidateIds = fullCatalog
         ? catalog.professions.map((profession) => profession.profession_id)
         : retrieval.professionIds.slice(0, ragConfig.top_k_professions);
-      const industryCandidateIds = fullCatalog
+      const industryCandidateIds = elementary
+        ? elementary.targets.map((target) => target.industry_id)
+        : fullCatalog
         ? Object.keys(industriesMap)
-        : retrieval.industryIds.slice(0, ragConfig.top_k_industries);
+        : [...new Set([
+            ...retrieval.industryIds.slice(0, ragConfig.top_k_industries),
+            ...candidateIds.map((id) => candidates[id].industry_id),
+          ])];
       const candidateSet = new Set(candidateIds);
       const tierCandidates = tier === "1-4"
         ? []
@@ -187,41 +208,31 @@ export async function runSofiPipeline(
                 ? candidate.description_5_8
                 : candidate.description_9_11,
               key_skills: candidate.key_skills,
-              trials: candidate.trials.map((trial) => ({
+              evidence_refs: (retrieval.evidence[id] ?? []).filter((ref) => postprocessContext.dossierRefs.has(ref)),
+              trials: candidate.trials.slice(0, 3).map((trial) => ({
                 trial_id: trial.trial_id,
                 title: trial.title,
-                description: tier === "5-8"
-                  ? trial.description_5_8
-                  : trial.description_9_11,
                 trial_type: trial.trial_type,
                 fit_level: trial.fit_level,
-                format: trial.format,
-                age_min: trial.age_min,
-                age_max: trial.age_max,
-                municipality: trial.municipality,
-                cost: trial.cost,
-                organization: trial.organization,
-                skills_checked: trial.skills_checked,
               })),
-              programs: candidate.programs.map((program) => ({
-                program_id: program.program_id,
-                title: program.name,
-                level: program.level ?? "",
-                fit_level: program.fit_level,
-                organization: program.organization,
-              })),
+              programs: tier === "9-11" ? candidate.programs.slice(0, 3).map((program) => ({
+                program_id: program.program_id, title: program.name, fit_level: program.fit_level,
+              })) : [],
             }];
           });
       const juniorActivities = tier === "1-4"
         ? catalog.trials.filter((trial) => elementaryActivityIds.has(trial.trial_id) && isTrialEligibleForGrade({ ...trial, trial_type: trial.trial_type ?? null }, grade))
         : [];
+      const activityOptions = tier === "1-4" ? juniorActivities : [];
       const validationContext: ValidationContext = {
         tier,
         catalogProfessionIds: new Set(Object.keys(candidates)),
         candidateProfessionIds: candidateSet,
         industryIds: new Set(industryCandidateIds),
         answerRefs: postprocessContext.dossierRefs,
-        activityTypes: new Set((tier === "1-4" ? juniorActivities : catalog.trials.filter(trial => isTrialEligibleForGrade({ ...trial, trial_type: trial.trial_type ?? null }, grade))).map(trial => trial.trial_id)),
+        activityTypes: new Set(activityOptions.map((trial) => trial.trial_id)),
+        candidateEvidenceRefs: Object.fromEntries(tierCandidates.map((p) => [p.profession_id, new Set(p.evidence_refs)])),
+
         professionIndustryById: Object.fromEntries(
           catalog.professions.map((profession) => [
             profession.profession_id,
@@ -259,20 +270,21 @@ export async function runSofiPipeline(
         digitWhitelist: extractDigitWhitelist(tierCandidates),
       };
       const generated = await generateValidatedResponse(
-        new OpenAICompatibleClient(),
+        audit?.client ?? new OpenAICompatibleClient(),
         [
           { role: "system", content: await buildPrompt(tier) },
           {
             role: "user",
             content: JSON.stringify({
               student: {
-                ...dossier.student,
+                tier,
+                grade,
+                in_region: dossier.student.in_region,
                 estimated_age: estimateAgeFromGrade(grade),
               },
-              answers: dossier.answers.map(({ ref, source, question, selected }) => ({
+              answers: signalAnswers.map(({ ref, signalType, selected }) => ({
                 ref,
-                source,
-                question,
+                signal_type: signalType,
                 selected,
               })),
               constraints: dossier.constraints,
@@ -283,7 +295,7 @@ export async function runSofiPipeline(
               })),
               candidates: tierCandidates,
               activity_link_contract: "activity_links[].type must be an activity_id from activity_types; use only supplied evidence refs",
-              activity_types: (tier === "1-4" ? juniorActivities : catalog.trials.filter(trial => isTrialEligibleForGrade({ ...trial, trial_type: trial.trial_type ?? null }, grade))).map((trial) => ({
+              activity_types: activityOptions.map((trial) => ({
                 activity_id: trial.trial_id,
                 title: trial.title,
                 description: tier === "1-4" ? trial.description_1_4 : tier === "5-8" ? trial.description_5_8 : trial.description_9_11,
@@ -295,12 +307,21 @@ export async function runSofiPipeline(
           },
         ],
         validationContext,
-        Date.now() + llmConfig.total_deadline_ms
+        Date.now() + llmConfig.total_deadline_ms,
+        audit?.onGeneration,
+        audit?.maxTokens
       );
       attempts = generated.attempts;
       const data = generated.validation.data;
+      audit?.onGeneration?.({ status: "validated", data });
 
       if (tier === "1-4" && "interest_tags" in data) {
+        for (const tag of data.interest_tags) {
+          const target = elementary?.targets.find((item) => item.industry_id === tag.industry_id);
+          if (tag.why.trim() && target && tag.evidence_refs.every((ref) => target.evidence_refs.includes(ref))) {
+            juniorWhy.set(tag.industry_id, tag.why);
+          }
+        }
         result = {
           status: data.interest_tags.length === 0 && data.status === "ok"
             ? "no_match"
@@ -334,12 +355,7 @@ export async function runSofiPipeline(
             why: industry.why,
           })),
           interest_tags: [],
-          // Explain each recommendation using the exact answers referenced by the model.
-          // Do not infer interests from the profession title or fabricate evidence.
-          hypotheses: processed.hypotheses.map((hypothesis) => ({
-            ...hypothesis,
-            why: evidenceReason(hypothesis) || hypothesis.why,
-          })),
+          hypotheses: processed.hypotheses,
           next_step: nextStep,
           warnings: [...new Set([
             ...dossier.warnings,
@@ -355,6 +371,7 @@ export async function runSofiPipeline(
       }
     } catch (error) {
       mode = "retrieval_only";
+      audit?.onGeneration?.({ status: "fallback", reason: error instanceof Error ? error.message : "unknown" });
       console.warn(
         "[AI] Генерация не прошла; включён retrieval-only fallback.",
         error instanceof Error ? error.message : "unknown error"
@@ -370,11 +387,12 @@ export async function runSofiPipeline(
 
   // Preserve the ZIP elementary.ts evidence threshold and explicit trial mappings.
   // The LLM writes age-friendly explanations, not the final catalog ID selection.
-  if (elementary && dossier.answers.length >= agePolicy.min_signal_answers) {
+  if (elementary && signalAnswers.length >= agePolicy.min_signal_answers) {
+
     const mappedTags = elementary.targets.map(target=>({
       industry_id:target.industry_id,
       tag:target.tag,
-      why:"Это направление связано с твоими ответами.",
+      why: juniorWhy.get(target.industry_id) || "Это направление связано с твоими ответами.",
       evidence_refs:target.evidence_refs
     }));
     const selectedIds = [...new Set(elementary.targets.flatMap(target=>target.activity_ids))].slice(0,3);
@@ -394,7 +412,7 @@ export async function runSofiPipeline(
   };
   // Do not cache degraded retrieval-only responses: a transient gateway outage
   // must not keep masking a recovered LLM or semantic retrieval service.
-  if (mode === "llm" && retrieval.mode === "semantic") {
+  if (!audit && mode === "llm" && retrieval.mode === "semantic") {
     setCache(cacheKey, result);
   }
   return result;

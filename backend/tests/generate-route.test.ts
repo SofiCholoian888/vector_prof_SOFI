@@ -9,7 +9,7 @@ import {
   type GenerateDeps,
 } from "../lib/sofi-generate.ts";
 import type { SofiModuleResult } from "../lib/sofi-adapter.ts";
-import type { SofiPipelineInput } from "../lib/sofi-pipeline.ts";
+import { runSofiPipeline, type SofiPipelineInput } from "../lib/sofi-pipeline.ts";
 
 const SESSION_A = "11111111-1111-4111-8111-111111111111";
 const SESSION_B = "22222222-2222-4222-8222-222222222222";
@@ -771,4 +771,56 @@ test("an empty professions table uses freeze ids and does not return 503", async
   assert.equal(hypotheses.length, 1);
   assert.equal(hypotheses[0].professionId, "prof_004");
   assert.equal(JSON.stringify(outcome.body).includes(ENERGY_ID), false);
+});
+
+test("an individual LLM explanation survives postprocess, API mapping and persistence", async () => {
+  const why = "Если тебе интересно разбирать механизмы, попробуй разобраться, как движение передаётся между деталями машины.";
+  const harness = createHarness({ [SESSION_A]: { grade:8, municipality:"Екатеринбург",
+    diagnostic:[{questionId:"future_direction", answer:"Инженер-механик, проектировать механизмы и чертежи"},
+      {questionId:"tasks", answer:"Ремонтировать станки и проверять работу оборудования"}] } },
+    { emptyProfessions:true });
+  harness.deps.pipeline = (input) => runSofiPipeline(input, { client:{
+    async chat(messages) {
+      const context = JSON.parse(messages[1].content);
+      const candidate = context.candidates.find((item: { profession_id: string }) => item.profession_id === "prof_001");
+      assert.ok(candidate?.evidence_refs?.length);
+      return { latencyMs:1, text:JSON.stringify({
+        schema_version:"1.0.0", status:"ok", summary:"Тебе интересно разбираться в устройстве машин и проверять свои идеи на практике.",
+        industries:[], next_step:"Рассмотри схему простого механизма.", warnings:[],
+        hypotheses:[{ profession_id:candidate.profession_id, industry_id:candidate.industry_id,
+          why, evidence_refs:[candidate.evidence_refs[0]], activity_links:[], match_strength:"moderate",
+          what_to_try:"Проследи движение деталей на чертеже.", trial_ids:[] }],
+      }) };
+    },
+  } });
+  const outcome = await executeGenerate({sessionId:SESSION_A, body:{}, deps:harness.deps});
+  assert.equal(outcome.ok, true);
+  if (!outcome.ok) return;
+  const hypotheses = outcome.body.hypotheses as Array<{ reason: string }>;
+  assert.equal(hypotheses[0]?.reason, why);
+  assert.ok(harness.inserts.flat().some((value) => JSON.stringify(value)?.includes(why)));
+});
+
+test("elementary mapping preserves valid LLM wording for supported directions", async () => {
+  const { prepareSofiInput } = await import("../lib/sofi-adapter.ts");
+  const prepared = prepareSofiInput({
+    profile:{ schoolGrade:3, municipality:"Екатеринбург" },
+    diagnosticAnswers:[
+      { questionId:"elementary_q2_free_time", answer:"Ухаживать за животными" },
+      { questionId:"elementary_q4_curious", answer:"О животных и природе" },
+    ],
+  });
+  const why = "Тебе может понравиться наблюдать за животными в природе.";
+  const result = await runSofiPipeline({ prepared, professions:[] }, { client:{
+    async chat() {
+      return { latencyMs:1, text:JSON.stringify({
+        schema_version:"1.0.0", status:"ok", summary:"Тебе интересно узнавать о животных.",
+        interest_tags:[{ industry_id:"ind_015", tag:"Животные", why, evidence_refs:["A1"] }],
+        activity_ids:[], next_step:"Поделись своим наблюдением со взрослым.", warnings:[],
+      }) };
+    },
+  } });
+  assert.equal(result.generation?.mode, "llm");
+  assert.deepEqual(result.hypotheses, []);
+  assert.ok(result.interest_tags?.some((item) => (item as { why: string }).why === why));
 });

@@ -3,18 +3,18 @@
 import collections
 import json
 import sys
+from pairs import load_records, verify_pairs
 
 TIER_KEYS = ("1-4", "5-8", "9-11")
 
 
 def load(path):
-    with open(path, encoding="utf-8") as handle:
-        return [json.loads(line) for line in handle if line.strip()]
+    return list(load_records(path).values())
 
 
 def base_mocks(records):
     return [r for r in records
-            if r["profile"].startswith("mock") and r["variant"] == "base" and r["tier"] != "1-4"]
+            if r["profile"].startswith("mock") and r["variant"] == "base" and r.get("tier") in ("5-8", "9-11")]
 
 
 def probes(records):
@@ -35,7 +35,8 @@ def share(counter, total):
 
 
 def metrics(path):
-    records = load(path)
+    all_records = load(path)
+    records = [r for r in all_records if not r.get("technicalFailure")]
     mocks = base_mocks(records)
     variants = collections.defaultdict(dict)
     for record in records:
@@ -46,13 +47,14 @@ def metrics(path):
     top5_industries = collections.Counter(h["industry_name"] for r in mocks for h in r["hypotheses"])
     per_tier = collections.Counter()
     for r in mocks:
-        per_tier[(r["tier"], top1(r)["name"])] += 1
+        if top1(r):
+            per_tier[(r["tier"], top1(r)["name"])] += 1
 
     unchanged = 0
     changed_total = 0
     overlaps = []
     for r in mocks:
-        flipped = variants.get((r["profile"] + "-flip", "flip"))
+        flipped = variants.get((r["profile"], "flip")) or variants.get((r["profile"] + "-flip", "flip"))
         if not flipped:
             continue
         changed_total += 1
@@ -83,7 +85,8 @@ def metrics(path):
 
     return {
         "file": path.split("/")[-1],
-        "mode": mocks[0]["retrieval"]["mode"] if mocks else "?",
+        "technical_failures": sum(bool(r.get("technicalFailure")) for r in all_records),
+        "mode": mocks[0]["retrieval"].get("mode", "?") if mocks else "?",
         "professions": mocks[0]["catalogProfessions"] if mocks else 0,
         "mock_profiles": len(mocks),
         "top1_unique": len(top1_names),
@@ -126,6 +129,9 @@ def influence(reference, other):
 
 
 def main():
+    loaded = [load_records(path) for path in sys.argv[1:]]
+    for comparison in loaded[1:]:
+        verify_pairs(loaded[0], comparison)
     rows = [metrics(path) for path in sys.argv[1:]]
     keys = list(rows[0].keys())
     print("| metric | " + " | ".join(row["file"] for row in rows) + " |")

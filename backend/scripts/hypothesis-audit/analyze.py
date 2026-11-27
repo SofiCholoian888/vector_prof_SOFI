@@ -5,14 +5,11 @@ import json
 import sys
 
 
+from pairs import load_records
+
+
 def load(paths):
-    records = []
-    for path in paths:
-        with open(path, encoding="utf-8") as handle:
-            for line in handle:
-                if line.strip():
-                    records.append(json.loads(line))
-    return records
+    return [row for path in paths for row in load_records(path).values()]
 
 
 def ids(record, limit=None):
@@ -38,11 +35,11 @@ def tie_report(records):
     spread = []
     for record in records:
         order = record["retrieval"]["professionIds"][:20]
-        scores = record["retrieval"]["professionScores"]
+        scores = record["retrieval"].get("professionScores", {})
         if len(order) < 2:
             continue
         total += 1
-        values = [scores[pid] for pid in order]
+        values = [scores.get(pid, 0) for pid in order]
         spread.append(max(values) - min(values))
         if len(set(round(value, 12) for value in values)) < len(values):
             exact_ties += 1
@@ -57,16 +54,22 @@ def tie_report(records):
 
 
 def summarize(records, title):
+    print(f"\n### {title}")
+    print("records:", len(records))
+    print("technical failures:", sum(bool(r.get("technicalFailure")) for r in records))
+    print("status:", dict(collections.Counter(r["status"] for r in records)))
+    print("actual modes:", dict(collections.Counter(r["retrieval"].get("mode", "error") for r in records)))
+    original_records = records
+    records = [r for r in records if not r.get("technicalFailure")]
     mocks = [r for r in records if r["profile"].startswith("mock") and r["variant"] == "base"]
     probes = [r for r in records if r["profile"].startswith("probe")]
-    print(f"\n### {title}")
-    print(f"records={len(records)} mock={len(mocks)} probes={len(probes)}")
+    print(f"profile rows={len(records)} mock={len(mocks)} probes={len(probes)}")
     print("tie report:", tie_report(records))
 
-    senior = [r for r in mocks if r["tier"] != "1-4"]
+    senior = [r for r in mocks if 5 <= r["grade"] <= 11]
     print("\ntop-1 on mock profiles (grades 5-11):")
     for name, count in collections.Counter(
-        top1(r) + " " + (r["hypotheses"][0]["name"] if r["hypotheses"] else "-") for r in senior
+        f'{top1(r)} {r["hypotheses"][0]["name"]}' if r["hypotheses"] else f'[empty: {r["status"]}]' for r in senior
     ).most_common():
         print(f"  {count:2d}  {name}")
     print("\ntop-5 profession frequency on mock profiles:")
@@ -84,8 +87,8 @@ def summarize(records, title):
 
     print("\nby age tier (top-1):")
     for tier in ("5-8", "9-11"):
-        subset = [r for r in senior if r["tier"] == tier]
-        counter = collections.Counter(top1(r) + " " + (r["hypotheses"][0]["name"] if r["hypotheses"] else "-") for r in subset)
+        subset = [r for r in senior if r.get("tier") == tier]
+        counter = collections.Counter(f'{top1(r)} {r["hypotheses"][0]["name"]}' if r["hypotheses"] else f'[empty: {r["status"]}]' for r in subset)
         print(f"  {tier} (n={len(subset)}): {counter.most_common(4)}")
 
     if probes:
@@ -107,19 +110,21 @@ def summarize(records, title):
 
     flips = [r for r in records if r["variant"] == "flip"]
     if flips:
-        base = {r["profile"]: r for r in records if r["variant"] == "base"}
+        base = {r["profile"]: r for r in original_records if r["variant"] == "base"}
         same_top1 = 0
         jaccards = []
         for flip in flips:
-            original = base.get(flip["profile"].replace("-flip", ""))
+            original = base.get(flip["profile"].removesuffix("-flip"))
             if not original:
+                raise ValueError(f"No base for {flip['profile']}")
+            if original.get("technicalFailure"):
                 continue
             same_top1 += top1(flip) == top1(original)
             left, right = set(ids(original, 5)), set(ids(flip, 5))
             jaccards.append(len(left & right) / len(left | right) if left | right else 1.0)
         print(
             f"\nsensitivity to one changed answer: top-1 unchanged "
-            f"{same_top1}/{len(flips)}, mean top-5 Jaccard {sum(jaccards)/len(jaccards):.2f}"
+            f"{same_top1}/{len(jaccards)}, mean top-5 Jaccard {sum(jaccards)/max(len(jaccards), 1):.2f}"
         )
 
     print("\nexplanation grounding:")
@@ -129,7 +134,7 @@ def summarize(records, title):
         sets = {tuple(item["evidence_refs"]) for item in r["hypotheses"]}
         if len(r["hypotheses"]) > 1 and len(sets) == 1:
             identical += 1
-        total_refs = {answer["ref"] for answer in r["answers"]}
+        total_refs = {answer["ref"] for answer in r.get("answers", [])}
         if r["hypotheses"] and set(r["hypotheses"][0]["evidence_refs"]) == total_refs:
             cited_all += 1
     print(f"  profiles where every hypothesis cites the same answers: {identical}/{len(senior)}")

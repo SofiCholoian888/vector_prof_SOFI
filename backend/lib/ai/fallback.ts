@@ -1,5 +1,5 @@
 import agePolicy from "@/config/age_policy.json" with { type: "json" };
-import type { Dossier } from "./dossier";
+import { careerAnswers, type Dossier } from "./dossier";
 import { evidenceReason, postprocess, type PostprocessContext } from "./postprocess";
 import type { RetrievalResult } from "./retrieval";
 
@@ -23,7 +23,7 @@ export async function buildFallbackResponse(opts: FallbackOptions) {
   if (retrievalUnavailable) warnings.add("retrieval_unavailable");
   if (retrieval.coverageGap || ctx.coverageGap) warnings.add("coverage_gap");
 
-  if (dossier.answers.length < agePolicy.min_signal_answers) {
+  if (careerAnswers(dossier).length < agePolicy.min_signal_answers) {
     return {
       status: "low_signal",
       generation: {
@@ -81,19 +81,20 @@ export async function buildFallbackResponse(opts: FallbackOptions) {
     };
   }
 
-  const rawHypotheses = retrieval.professionIds.slice(0, 5).flatMap((professionId) => {
+  const rawHypotheses = retrieval.professionIds.flatMap((professionId) => {
     const candidate = ctx.candidatesMap[professionId];
     const refs = (retrieval.evidence[professionId] ?? []).filter(ref => ctx.dossierRefs.has(ref) && (ctx.answersMap[ref]?.selected?.length ?? 0) > 0);
     if (!candidate || refs.length === 0) return [];
 
-    if (refs.length === 0) return [];
     return [{
       profession_id: professionId,
       industry_id: candidate.industry_id,
       why: "Эта профессия связана с твоими ответами.",
       evidence_refs: refs,
       activity_links: [],
-      match_strength: "moderate" as const,
+      // Similarity points to an avenue to explore. It cannot validate a
+      // student's fit or distinguish a broad interest from a specific intent.
+      match_strength: "weak" as const,
       what_to_try: "Посмотри, чем занимаются в этой профессии, и выбери небольшую пробу.",
       trial_ids: (candidate.trial_ids ?? []).map((item: unknown) =>
         typeof item === "string" ? item : (item as { trial_id?: string })?.trial_id

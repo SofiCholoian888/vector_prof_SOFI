@@ -1,5 +1,5 @@
 {
-  "version": "1.3.1",
+  "version": "1.4.0",
   "full_catalog_threshold": 20,
   "top_k_industries": 5,
   "top_k_professions": 20,
@@ -8,6 +8,5 @@
   "lexical_min_similarity": 0.05,
   "mmr_lambda": 0.72,
   "enable_riasec_mmr": false,
-  "embedding_timeout_ms": 12000,
-  "epsilon_relative": 0.05
+  "embedding_timeout_ms": 12000
 }

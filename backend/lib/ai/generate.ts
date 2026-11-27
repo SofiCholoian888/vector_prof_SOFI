@@ -15,7 +15,9 @@ export async function generateValidatedResponse(
   client: LLMClient,
   messages: ChatMessage[],
   context: ValidationContext,
-  deadlineAt: number
+  deadlineAt: number,
+  observe?: (event: Record<string, unknown>) => void,
+  auditMaxTokens?: number
 ): Promise<{
   validation: Extract<ValidationResult, { success: true }>;
   attempts: number;
@@ -40,10 +42,11 @@ export async function generateValidatedResponse(
         maxAttempts: 1,
         temperature: attempt === 1 ? llmConfig.temperature : 0,
         topP: llmConfig.top_p,
-        maxTokens: llmConfig.max_tokens_by_tier[context.tier],
+        maxTokens: auditMaxTokens ?? llmConfig.max_tokens_by_tier[context.tier],
         responseFormat,
       });
     } catch (error) {
+      observe?.({ status: "request_error", attempt, reason: error instanceof Error ? error.message : "unknown" });
       if (lastErrors.length > 0) {
         const cause = error instanceof Error ? error.message : "unknown LLM error";
         throw new Error(
@@ -61,6 +64,9 @@ export async function generateValidatedResponse(
         : { providerCostUsd: response.providerCostUsd }),
     });
     const validation = validateResponse(response.text, context);
+    observe?.({ status: "response", attempt, latencyMs: response.latencyMs, usage: response.usage,
+      finishReason: response.finishReason, errors: validation.success ? [] : validation.errors });
+
     if (validation.success) return { validation, attempts: attempt, calls, sanitized };
 
     let responseTextForCorrection = response.text;
@@ -109,6 +115,7 @@ export async function generateValidatedResponse(
               })),
               evidence_refs: [...context.answerRefs],
               activity_types: [...(context.activityTypes ?? [])],
+              evidence_by_profession: Object.fromEntries(Object.entries(context.candidateEvidenceRefs ?? {}).map(([id, refs]) => [id, [...refs]])),
             },
             instruction:
               "Исправь ответ. Верни ТОЛЬКО валидный JSON-объект, без markdown, без текста до или после JSON; если исправить невозможно — {}. Ошибки: " +

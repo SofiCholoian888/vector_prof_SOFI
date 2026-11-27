@@ -1,0 +1,315 @@
+{
+  "baseline_commit": "715fc40ac8a5b166c14141327c4615ae55ba6282",
+  "embedding_model": "EmbeddingsGigaR",
+  "embedding_query_mode": "plain",
+  "chat_model": "GigaChat-2-Pro",
+  "baseline": {
+    "sha256": {
+      "data/export/navigator.json": "49e07af39589bcda54697d10362b734cad19e435b32f50b259185bfed2495750",
+      "data/catalog.index.json": "19dfa927f70d84eeb6b042e3d793ea45cb80d6ae6864957c286640b0e620d706",
+      "data/mock_students_data.json": "eb46bdee38bab4c0bde24847a98edda5697ead35c6bed19b92e085da115f4f29",
+      "data/bilet_questions_master.json": "86cc6de7ef9d745101ee3cf434dbb450ad7b3fcd67558c2eb1414704776350e7",
+      "data/agent_clarification.json": "53d5fd4e542e1097b9a9d25d6c915d9a855a94f1e16fe598633c424763983001",
+      "config/rag.config.json": "9d9371e39dd224acb386777474f0c5466d17923d81b29ca4d2d1267190f4e531",
+      "config/age_policy.json": "277e6eda4a9be9d65b7d09f1f00ae4e8f4e18adba34150dd57f824a8642ef198",
+      "config/llm.config.json": "a429dbc62cde9fc97ed273ff0b93273317a279909d95e0afdd85fdaeb853ba5d",
+      "config/validation_patterns.json": "906c73270b18b7b374c632c09190904a5dec6c0007b1a6c99aa2c51555dba27e",
+      "prompts/manifest.json": "973b7accaccc37b06b3dc22af19d24a60354c139d842216155d9903ef579f37e"
+    },
+    "prompts": {
+      "1-4": {
+        "prompt": "nav-1-4@1.0.11",
+        "schema": "tier-1-4@1.0.0",
+        "sha256": "d8cc8599c287ad6a0e52a9e9ab360bb5734babd19e6343d479ae1dc099d7d292"
+      },
+      "5-8": {
+        "prompt": "nav-5-8@1.0.2",
+        "schema": "tier-5-8@1.0.0",
+        "sha256": "fc90e1122b88daa7dcdc47d1a34ce5d875daf429449f85799c94550aa8f647d2"
+      },
+      "9-11": {
+        "prompt": "nav-9-11@1.0.2",
+        "schema": "tier-9-11@1.0.0",
+        "sha256": "945564401dd2de80bf8a31a223a3b762d962c485e50d9328c8bdb41bd27178e0"
+      }
+    },
+    "configuration": {
+      "rag.config": {
+        "version": "1.3.1",
+        "full_catalog_threshold": 20,
+        "top_k_industries": 5,
+        "top_k_professions": 20,
+        "rrf_k": 60,
+        "min_similarity": 0.2,
+        "lexical_min_similarity": 0.05,
+        "mmr_lambda": 0.72,
+        "enable_riasec_mmr": false,
+        "embedding_timeout_ms": 12000,
+        "epsilon_relative": 0.05
+      },
+      "age_policy": {
+        "version": "1.0.0",
+        "min_signal_answers": 2,
+        "tiers": [
+          {
+            "id": "1-4",
+            "grade": [
+              1,
+              4
+            ],
+            "track": "explore",
+            "prompt": "nav-1-4",
+            "show": {
+              "interest_tags": true,
+              "activities": true,
+              "professions": false,
+              "programs": false,
+              "salary": false,
+              "confidence": false,
+              "riasec": "none"
+            },
+            "min_items": 1,
+            "max_items": 3,
+            "max_sentence_words": 10
+          },
+          {
+            "id": "5-8",
+            "grade": [
+              5,
+              8
+            ],
+            "track": "interests",
+            "prompt": "nav-5-8",
+            "show": {
+              "professions": "short",
+              "programs": false,
+              "salary": false,
+              "confidence": "words",
+              "riasec": "words"
+            },
+            "min_items": 1,
+            "max_items": 4,
+            "max_sentence_words": 20
+          },
+          {
+            "id": "9-11",
+            "grade": [
+              9,
+              11
+            ],
+            "track": "known_direction",
+            "prompt": "nav-9-11",
+            "show": {
+              "professions": "full",
+              "programs": true,
+              "salary": true,
+              "confidence": "level",
+              "riasec": "letters+words"
+            },
+            "min_items": 1,
+            "max_items": 5,
+            "max_sentence_words": 20
+          }
+        ]
+      },
+      "llm.config": {
+        "version": "1.1.0",
+        "model": "GigaChat-2-Pro",
+        "temperature": 0.48,
+        "top_p": 1,
+        "max_tokens_by_tier": {
+          "1-4": 1000,
+          "5-8": 1500,
+          "9-11": 1500
+        },
+        "total_deadline_ms": 45000,
+        "attempt_timeout_ms": 30000,
+        "circuit_breaker": {
+          "failure_threshold": 2,
+          "cooldown_ms": 60000
+        }
+      }
+    }
+  },
+  "current": {
+    "sha256": {
+      "data/export/navigator.json": "49e07af39589bcda54697d10362b734cad19e435b32f50b259185bfed2495750",
+      "data/catalog.index.json": "19dfa927f70d84eeb6b042e3d793ea45cb80d6ae6864957c286640b0e620d706",
+      "data/mock_students_data.json": "eb46bdee38bab4c0bde24847a98edda5697ead35c6bed19b92e085da115f4f29",
+      "data/bilet_questions_master.json": "86cc6de7ef9d745101ee3cf434dbb450ad7b3fcd67558c2eb1414704776350e7",
+      "data/agent_clarification.json": "53d5fd4e542e1097b9a9d25d6c915d9a855a94f1e16fe598633c424763983001",
+      "config/rag.config.json": "ba8f132267b3e52f6e623e40cbb50e7a092852b2b0241bb97284a3a43ffd1ac3",
+      "config/age_policy.json": "277e6eda4a9be9d65b7d09f1f00ae4e8f4e18adba34150dd57f824a8642ef198",
+      "config/llm.config.json": "a429dbc62cde9fc97ed273ff0b93273317a279909d95e0afdd85fdaeb853ba5d",
+      "config/validation_patterns.json": "906c73270b18b7b374c632c09190904a5dec6c0007b1a6c99aa2c51555dba27e",
+      "prompts/manifest.json": "a383c58ac334c429366af13a6b1b04b99ec8366258bbbb59ab3ae07978943222"
+    },
+    "prompts": {
+      "1-4": {
+        "prompt": "nav-1-4@1.0.12",
+        "schema": "tier-1-4@1.0.0",
+        "sha256": "43ecfcd83376ae2d5e3eb18fe31e2f962c0329196c8feb580a386938a0f25978"
+      },
+      "5-8": {
+        "prompt": "nav-5-8@1.0.3",
+        "schema": "tier-5-8@1.0.0",
+        "sha256": "f22e04780facb0d069fdebdaa45e1dbc46d288d2e414ab81b3f3c265efcf8509"
+      },
+      "9-11": {
+        "prompt": "nav-9-11@1.0.3",
+        "schema": "tier-9-11@1.0.0",
+        "sha256": "6bf9fbaa909218e97273fa17b5ce2c8d9733d0adbfb52850af378750773cc5ee"
+      }
+    },
+    "configuration": {
+      "rag.config": {
+        "version": "1.4.0",
+        "full_catalog_threshold": 20,
+        "top_k_industries": 5,
+        "top_k_professions": 20,
+        "rrf_k": 60,
+        "min_similarity": 0.2,
+        "lexical_min_similarity": 0.05,
+        "mmr_lambda": 0.72,
+        "enable_riasec_mmr": false,
+        "embedding_timeout_ms": 12000
+      },
+      "age_policy": {
+        "version": "1.0.0",
+        "min_signal_answers": 2,
+        "tiers": [
+          {
+            "id": "1-4",
+            "grade": [
+              1,
+              4
+            ],
+            "track": "explore",
+            "prompt": "nav-1-4",
+            "show": {
+              "interest_tags": true,
+              "activities": true,
+              "professions": false,
+              "programs": false,
+              "salary": false,
+              "confidence": false,
+              "riasec": "none"
+            },
+            "min_items": 1,
+            "max_items": 3,
+            "max_sentence_words": 10
+          },
+          {
+            "id": "5-8",
+            "grade": [
+              5,
+              8
+            ],
+            "track": "interests",
+            "prompt": "nav-5-8",
+            "show": {
+              "professions": "short",
+              "programs": false,
+              "salary": false,
+              "confidence": "words",
+              "riasec": "words"
+            },
+            "min_items": 1,
+            "max_items": 4,
+            "max_sentence_words": 20
+          },
+          {
+            "id": "9-11",
+            "grade": [
+              9,
+              11
+            ],
+            "track": "known_direction",
+            "prompt": "nav-9-11",
+            "show": {
+              "professions": "full",
+              "programs": true,
+              "salary": true,
+              "confidence": "level",
+              "riasec": "letters+words"
+            },
+            "min_items": 1,
+            "max_items": 5,
+            "max_sentence_words": 20
+          }
+        ]
+      },
+      "llm.config": {
+        "version": "1.1.0",
+        "model": "GigaChat-2-Pro",
+        "temperature": 0.48,
+        "top_p": 1,
+        "max_tokens_by_tier": {
+          "1-4": 1000,
+          "5-8": 1500,
+          "9-11": 1500
+        },
+        "total_deadline_ms": 45000,
+        "attempt_timeout_ms": 30000,
+        "circuit_breaker": {
+          "failure_threshold": 2,
+          "cooldown_ms": 60000
+        }
+      }
+    }
+  },
+  "legacy": {
+    "source_commit": "adf61e93da399a830461d0ef0956f4f01614b152",
+    "version": "sha256:0eb9dbee78b76f60f593d82332a3220f99966a0c0b7799348a4454bc8a1287a3",
+    "sha256_records": "9bd9fc4a293aa6c95dc2582e0ee376baeb391d524f188fe418a2d1bbcc972f36",
+    "sha256_index": "3a82500915c2692882f173df27befad041ce75a72236ab95af62187731eee7d5"
+  },
+  "no_skills_index_sha256": "918bf61ad8abfe4fdb6933e66d9732669cb6147be294444050fd92fc02185a48",
+  "node": "v24.22.3",
+  "records_per_run": {
+    "E1-lexical": 76,
+    "E1-semantic": 76,
+    "E2-full-lexical": 6,
+    "E2-full-semantic": 6,
+    "E2-lexical": 76,
+    "E2-semantic": 76,
+    "E3-lexical": 76,
+    "E3-semantic": 76,
+    "E4-full-lexical": 6,
+    "E4-full-semantic": 6,
+    "E4-lexical": 76,
+    "E4-semantic": 76,
+    "ablation-dedup": 31,
+    "ablation-market": 31,
+    "ablation-mean2": 31,
+    "ablation-mmr": 31,
+    "ablation-riasec": 31,
+    "ablation-skills": 31,
+    "ablation-soft": 31,
+    "live-control-crops-10-lexical": 1,
+    "live-control-crops-10-semantic": 1,
+    "live-control-mechanisms-7-semantic": 1,
+    "live-crops-lexical-retry": 1,
+    "live-crops-semantic-cap-1100": 1,
+    "live-crops-semantic-cap-850": 1,
+    "live-design-default-lexical": 1,
+    "live-design-default-semantic": 1,
+    "live-hardened-control-crops-10-lexical": 1,
+    "live-hardened-probe-ind_003-lexical": 1,
+    "live-hardened-probe-ind_010-lexical": 1,
+    "live-hardened-probe-ind_012-lexical": 1,
+    "live-mixed-screenshot-semantic": 1,
+    "live-probe-ind_004-lexical": 1,
+    "live-probe-ind_015-semantic": 1,
+    "baseline-lexical": 46,
+    "baseline-semantic": 46,
+    "fault-injection": 8
+  },
+  "records_sha256_uncompressed": "8814ba4795fa36a8ecf07cb467fb0ba36e674f62fdc20541e23115a556e56305",
+  "limits": {
+    "samples": "15 existing demo profiles, 16 existing probes, synthetic controls and perturbations",
+    "embedding_cache": "Shared real provider results for identical query batches. Replay latency is local.",
+    "full_run": "Six paired synthetic profiles per retrieval mode and stage plus separately marked retries.",
+    "assessor": "Predeclared synthetic professions and industries and manual audit of examples, no independent expert labels."
+  }
+}

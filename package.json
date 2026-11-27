@@ -7,7 +7,8 @@
     "build": "tsc --noEmit --pretty false && next build",
     "start": "next start --port 3001",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:hypothesis-browser": "node tests/hypothesis-browser.mjs"
   },
   "dependencies": {
     "next": "^15.5.28",

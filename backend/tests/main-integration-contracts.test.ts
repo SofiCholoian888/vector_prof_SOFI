@@ -77,6 +77,6 @@ test("generate and track use database budgets without stacking the in-process gu
 test("failed retrieval is labeled lexical and only a semantic LLM result is cached", () => {
   const pipeline = source("../lib/sofi-pipeline.ts");
   assert.match(pipeline, /mode: "lexical"/);
-  assert.match(pipeline, /if \(mode === "llm" && retrieval\.mode === "semantic"\) \{\s*setCache\(cacheKey, result\)/);
+  assert.match(pipeline, /if \(!audit && mode === "llm" && retrieval\.mode === "semantic"\) \{\s*setCache\(cacheKey, result\)/);
   assert.equal(shouldCachePipelineResult({ generationMode: "llm", retrievalMode: "lexical" }), false);
 });
