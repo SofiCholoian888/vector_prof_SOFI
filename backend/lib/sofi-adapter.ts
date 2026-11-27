@@ -101,6 +101,7 @@ export type SofiHypothesisSource = {
 };
 
 export type SofiGenerationMeta = {
+  retrievalMode?: "semantic" | "lexical" | "mock";
   mode: "llm" | "retrieval_only";
   tier: AgeTier;
   promptVersion: string | null;
@@ -159,6 +160,7 @@ export type SofiAiPayload = {
   activityIds: string[];
   industries: unknown[];
   generation: {
+    retrievalMode?: SofiGenerationMeta["retrievalMode"];
     mode: "llm" | "retrieval_only";
     tier: AgeTier;
     promptVersion: string | null;
@@ -370,6 +372,7 @@ export function adaptSofiResult(
 
   const generation = result.generation
     ? {
+        ...(result.generation.retrievalMode && { retrievalMode: result.generation.retrievalMode }),
         mode: result.generation.mode,
         tier: result.generation.tier,
         promptVersion: result.generation.promptVersion,

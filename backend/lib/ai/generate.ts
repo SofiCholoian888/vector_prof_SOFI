@@ -1,6 +1,6 @@
-import llmConfig from "@/config/llm.config.json";
-import { ChatMessage, LLMClient } from "./llm/client";
-import { ValidationContext, ValidationResult, validateResponse } from "./validate";
+import llmConfig from "@/config/llm.config.json" with { type: "json" };
+import type { ChatMessage, LLMClient } from "./llm/client";
+import { type ValidationContext, type ValidationResult, validateResponse } from "./validate";
 import { getRecommendationResponseFormat } from "./output-json-schema";
 import { softSanitizeResponse } from "./soft-sanitize";
 

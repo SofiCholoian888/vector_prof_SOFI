@@ -5,51 +5,26 @@ import test from "node:test";
 import {
   assessEmbeddingIndex,
   embeddingStartupPlan,
-  embeddingVectorsUsable,
 } from "../lib/ai/index-contract.ts";
-import { loadRuntimeCatalog, resetRuntimeCatalogCache } from "../lib/runtime-catalog.ts";
+import { validateFreezeEmbeddingIndex } from "../lib/ai/freeze-embedding.ts";
+import { loadRuntimeCatalog } from "../lib/runtime-catalog.ts";
 
-const index = JSON.parse(fs.readFileSync(new URL("../data/catalog.index.json", import.meta.url), "utf8")) as {
-  catalog_version: string;
-  model?: string;
-  dimensions: number;
-  entries: Array<{ type: string; vector?: number[]; metadata?: { profession_id?: string } }>;
-};
-const legacy = JSON.parse(fs.readFileSync(new URL("../data/catalog.normalized.json", import.meta.url), "utf8")) as {
-  version: string;
-  professions: Array<{ profession_id: string }>;
-};
+const index = JSON.parse(fs.readFileSync(new URL("../data/catalog.index.json", import.meta.url), "utf8"));
 
-test("EmbeddingsGigaR index covers the legacy snapshot and not the 152-profession freeze", () => {
-  resetRuntimeCatalogCache();
+test("shipped provider index covers the exact runtime freeze", () => {
   const runtime = loadRuntimeCatalog();
-  const indexed = new Set(
-    index.entries.flatMap((entry) => entry.metadata?.profession_id ? [entry.metadata.profession_id] : [])
-  );
-  const freezeIds = new Set(runtime.catalog.professions.map((profession) => profession.profession_id));
-  const outside = [...indexed].filter((id) => !freezeIds.has(id)).sort();
-
-  assert.equal(index.model, "EmbeddingsGigaR");
-  assert.equal(index.dimensions, 2560);
-  assert.equal(index.entries.length, 71);
-  assert.equal(index.entries.filter((entry) => entry.type === "profession_core").length, 30);
-  assert.equal(indexed.size, 30);
-  assert.equal(index.catalog_version, legacy.version);
-  assert.notEqual(index.catalog_version, runtime.catalog.version);
   assert.equal(runtime.origin, "data_freeze_1");
   assert.equal(runtime.catalog.professions.length, 152);
-  assert.deepEqual(outside, ["prof_016", "prof_028", "prof_029"]);
-  assert.equal([...freezeIds].filter((id) => !indexed.has(id)).length, 125);
-  assert.equal(embeddingVectorsUsable({
-    catalogVersionMatches: false,
-    recordedModel: "EmbeddingsGigaR",
-    configuredModel: "EmbeddingsGigaR",
-    allowMock: false,
-    vectors: [index.entries[0]?.vector ?? []],
-  }), false);
+  assert.deepEqual(validateFreezeEmbeddingIndex(index, runtime.catalog), []);
+  const swapped = { ...index.entries[0], chunkId: index.entries[1].chunkId };
+  assert.ok(validateFreezeEmbeddingIndex({ ...index, entries: [swapped, ...index.entries.slice(1)] }, runtime.catalog)
+    .includes("chunk identity or content mismatch"));
+});
 
+test("stale, mock, and unconfigured freeze indexes stay lexical", () => {
+  const runtime = loadRuntimeCatalog();
   const decision = assessEmbeddingIndex({
-    index,
+    index: { ...index, catalog_version: "old" },
     catalogVersion: runtime.catalog.version,
     chunkCount: runtime.catalog.chunks.length,
     configuredModel: "EmbeddingsGigaR",
@@ -73,4 +48,49 @@ test("EmbeddingsGigaR index covers the legacy snapshot and not the 152-professio
     vectorSource: "provider",
     professionCount: 152,
   }), "use");
+});
+
+test("SOFI reports actual retrieval mode for a working batch and for a gateway outage", async (t) => {
+  const { createServer } = await import("node:http");
+  const { prepareSofiInput } = await import("../lib/sofi-adapter.ts");
+  const { runSofiPipeline } = await import("../lib/sofi-pipeline.ts");
+  const vector = index.entries[0].vector;
+  let outage = false;
+  let calls = 0;
+  const server = createServer(async (req, res) => {
+    calls++;
+    if (outage) {
+      res.writeHead(503).end();
+      return;
+    }
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const { input, model } = JSON.parse(body);
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ model, data: input.map((_: string, index: number) => ({ index, embedding: vector })).reverse() }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const settings = {
+    LLM_BASE_URL: `http://127.0.0.1:${address.port}`, LLM_API_KEY: "fixture",
+    LLM_EMBEDDINGS_MODEL: "EmbeddingsGigaR", USE_MOCK_EMBEDDINGS: "false",
+  };
+  for (const [key, value] of Object.entries(settings)) {
+    const before = process.env[key];
+    t.after(() => { if (before === undefined) delete process.env[key]; else process.env[key] = before; });
+    process.env[key] = value;
+  }
+  const prepared = prepareSofiInput({
+    profile: { schoolGrade: 8, municipality: "Екатеринбург" },
+    diagnosticAnswers: [{ questionId: "bilet_q1", answer: "Чтение технических чертежей и схем" }],
+  });
+  const input = { prepared, professions: [] };
+  assert.equal((await runSofiPipeline(input)).generation?.retrievalMode, "semantic");
+  outage = true;
+  const degraded = await runSofiPipeline(input);
+  assert.equal(degraded.generation?.retrievalMode, "lexical");
+  assert.ok(degraded.warnings?.includes("embedding_unavailable_lexical_fallback"));
+  assert.equal(calls, 2);
 });

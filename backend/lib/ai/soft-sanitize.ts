@@ -1,4 +1,4 @@
-import { extractJson, ValidationContext } from "./validate";
+import { extractJson, type ValidationContext } from "./validate";
 
 const units = [
   "ноль",

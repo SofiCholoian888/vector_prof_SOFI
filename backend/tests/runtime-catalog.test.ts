@@ -38,7 +38,7 @@ test("runtime catalog is Alice's freeze, with legacy names only as fallback", ()
     for (const skill of profession.skills) assert.ok(skillIds.has(skill.skill_id));
     for (const trialId of profession.trial_ids) assert.ok(trialIds.has(trialId));
     for (const programId of profession.program_ids) assert.ok(programIds.has(programId));
-    assert.ok(profession.skills.every((skill) => skill.matching_eligible === undefined || skill.matching_eligible === "yes_provisional"));
+    assert.ok(profession.skills.every((skill) => skill.matching_eligible === "yes_provisional"));
   }
 
   const legacy = JSON.parse(fs.readFileSync(new URL("../data/navigator_full_graph.json", import.meta.url), "utf8")) as {

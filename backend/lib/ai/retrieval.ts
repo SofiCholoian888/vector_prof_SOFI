@@ -1,4 +1,5 @@
 // lib/ai/retrieval.ts
+import { readEmbeddingBatch } from "./embedding-response";
 import fs from "node:fs/promises";
 import { validateFreezeEmbeddingIndex, type FreezeEmbeddingIndex } from "./freeze-embedding";
 import type { Dossier } from "./dossier";
@@ -85,23 +86,7 @@ async function getEmbeddings(
       }
     );
 
-    const data = response.data?.data;
-    if (!Array.isArray(data) || data.length !== texts.length) {
-      throw new Error(`Embedding API вернул ${data?.length ?? 0} векторов вместо ${texts.length}`);
-    }
-    const expectedDimensions = indexEntries[0]?.vector.length;
-    return data.map((item: { embedding?: unknown }, index: number) => {
-      const embedding = item?.embedding;
-      if (
-        !Array.isArray(embedding) ||
-        embedding.length === 0 ||
-        (expectedDimensions !== undefined && embedding.length !== expectedDimensions) ||
-        !embedding.every((value) => typeof value === "number" && Number.isFinite(value))
-      ) {
-        throw new Error(`Embedding API вернул некорректный вектор для запроса ${index + 1}`);
-      }
-      return embedding as number[];
-    });
+    return readEmbeddingBatch(response.data, settings.model, texts.length, indexEntries[0].vector.length);
   } catch (error: unknown) {
     if (axios.isAxiosError(error) && error.response) {
       throw new Error(`Embedding API error: ${error.response.status}`);
@@ -264,7 +249,7 @@ export async function retrieve(
   let index: CatalogIndex;
   try { index = JSON.parse(await fs.readFile("data/catalog.index.json", "utf8")); }
   catch { index = {catalog_version:"",entries:[]}; }
-  if(!Array.isArray(index.entries)) index={catalog_version:"",entries:[]};
+  if(!Array.isArray(index?.entries)) index={catalog_version:"",entries:[]};
   const { loadRuntimeCatalog } = await import("../runtime-catalog.ts");
   const runtimeCatalog = loadRuntimeCatalog();
   const catalog = runtimeCatalog.catalog as NormalizedCatalogSnapshot;
@@ -279,7 +264,7 @@ export async function retrieve(
     recordedModel: recorded.conflict ? null : recorded.model,
     configuredModel,
     allowMock: process.env.USE_MOCK_EMBEDDINGS === "true",
-    vectors: index.entries.map((entry) => entry.vector),
+    vectors: indexIsCurrent ? index.entries.map((entry) => entry.vector) : [],
   });
   const entries = indexIsCurrent
     ? index.entries

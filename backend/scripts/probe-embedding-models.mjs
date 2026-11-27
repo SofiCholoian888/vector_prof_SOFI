@@ -32,10 +32,13 @@ if(embeddingModel){
 try {
  const fs=await import("node:fs/promises");
  const index=JSON.parse(await fs.readFile("data/catalog.index.json","utf8"));
- const catalog=JSON.parse(await fs.readFile("data/catalog.normalized.json","utf8"));
- const entries=Array.isArray(index.entries)?index.entries:[];
- const dims=[...new Set(entries.map(e=>Array.isArray(e.vector)?e.vector.length:null))];
- const model=index.embedding_model??null;
- const match=Boolean(model&&model===embeddingModel&&index.catalog_version===catalog.version&&dims.length===1&&dims[0]===2560);
+ const { loadRuntimeCatalog } = await import("../lib/runtime-catalog.ts");
+ const { validateFreezeEmbeddingIndex } = await import("../lib/ai/freeze-embedding.ts");
+ const { catalog, origin } = loadRuntimeCatalog();
+ const entries = Array.isArray(index.entries) ? index.entries : [];
+ const dims = [...new Set(entries.map(entry => entry.vector?.length))];
+ const model = index.embedding_model ?? index.model;
+ const match = origin === "data_freeze_1" && model === embeddingModel &&
+   validateFreezeEmbeddingIndex(index, catalog).length === 0;
  console.log("[RAG index audit]",JSON.stringify({catalogVersion:catalog.version,indexVersion:index.catalog_version,indexModel:model,configuredModel:embeddingModel,indexEntries:entries.length,catalogChunks:catalog.chunks?.length??null,dimensions:dims,compatible:match}));
 }catch(error){console.log("[RAG index audit] Failed:",error instanceof Error?error.message:"unknown");}

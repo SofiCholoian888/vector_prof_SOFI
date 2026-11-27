@@ -1,3 +1,4 @@
+import { loadRuntimeCatalog } from "../lib/runtime-catalog.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
@@ -99,33 +100,30 @@ test("missing configuration keeps a structurally valid legacy index without rebu
   assert.equal(decision.action, "use-structural");
 });
 
-test("shipped catalog index is accepted through its legacy model field", () => {
+test("shipped catalog index is accepted against its own snapshot", () => {
   const index = JSON.parse(fs.readFileSync(new URL("../data/catalog.index.json", import.meta.url), "utf8")) as {
     model?: string;
     embedding_model?: string;
     entries: unknown[];
   };
-  const catalog = JSON.parse(fs.readFileSync(new URL("../data/catalog.normalized.json", import.meta.url), "utf8")) as {
-    version: string;
-    chunks: unknown[];
-  };
-  assert.equal(typeof index.model, "string");
-  assert.equal(index.model, "EmbeddingsGigaR");
+  const snapshot = loadRuntimeCatalog().catalog;
+  const model = readRecordedEmbeddingModel(index).model;
+  assert.equal(model, "EmbeddingsGigaR");
   assert.equal(EXPECTED_EMBEDDING_DIMENSIONS, 2560);
   const firstVector = (index.entries[0] as { vector?: unknown[] } | undefined)?.vector;
   assert.equal(Array.isArray(firstVector) && firstVector.length, 2560);
-  assert.equal(index.embedding_model, undefined);
+
   const matched = assessEmbeddingIndex({
     index,
-    catalogVersion: catalog.version,
-    chunkCount: catalog.chunks.length,
-    configuredModel: index.model ?? "",
+    catalogVersion: snapshot.version,
+    chunkCount: snapshot.chunks.length,
+    configuredModel: model,
   });
   assert.equal(matched.action, "use");
   const unconfigured = assessEmbeddingIndex({
     index,
-    catalogVersion: catalog.version,
-    chunkCount: catalog.chunks.length,
+    catalogVersion: snapshot.version,
+    chunkCount: snapshot.chunks.length,
     configuredModel: "",
   });
   assert.equal(unconfigured.action, "use-structural");

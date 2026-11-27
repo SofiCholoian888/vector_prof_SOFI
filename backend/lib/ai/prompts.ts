@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import agePolicy from "@/config/age_policy.json";
-import promptManifest from "@/prompts/manifest.json";
+import agePolicy from "@/config/age_policy.json" with { type: "json" };
+import promptManifest from "@/prompts/manifest.json" with { type: "json" };
 
 export async function buildPrompt(tierId: "1-4" | "5-8" | "9-11"): Promise<string> {
   const tierConfig = agePolicy.tiers.find(t => t.id === tierId);

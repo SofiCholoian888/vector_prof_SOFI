@@ -12,12 +12,7 @@ export type RuntimeCatalogOrigin = "data_freeze_1" | "legacy_normalized";
 
 export type EmbeddingStartupPlan = "use" | "incomplete-lexical" | "rebuild-legacy" | "refuse";
 
-/**
- * The shipped EmbeddingsGigaR index belongs to the legacy normalized catalog.
- * A freeze mismatch must stay lexical: do not call the embedding gateway and
- * do not describe that index as semantic coverage of the runtime catalog.
- * Rebuilding stays available only for the legacy catalog the builder reads.
- */
+/** A stale or incomplete freeze index starts in lexical mode without a gateway call. */
 export function embeddingStartupPlan(input: {
   origin: RuntimeCatalogOrigin;
   decision: EmbeddingIndexDecision;

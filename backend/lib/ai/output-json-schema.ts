@@ -1,5 +1,5 @@
-import { JsonSchemaResponseFormat } from "./llm/client";
-import promptManifest from "@/prompts/manifest.json";
+import type { JsonSchemaResponseFormat } from "./llm/client";
+import promptManifest from "@/prompts/manifest.json" with { type: "json" };
 
 type JsonSchema = Record<string, unknown>;
 

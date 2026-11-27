@@ -38,3 +38,33 @@ test("freeze embedding builder describes 152 professions and keeps mock vectors 
   assert.ok(report.chunkCount >= 152);
   assert.equal(fs.statSync(indexPath).mtimeMs, before);
 });
+
+test("embedding responses preserve input identity and reject invalid batches", async () => {
+  const { readEmbeddingBatch } = await import("../lib/ai/embedding-response.ts");
+  const rows = [{ index: 1, embedding: [0, 1] }, { index: 0, embedding: [1, 0] }];
+  assert.deepEqual(readEmbeddingBatch({ data: rows }, "model", 2, 2), [[1, 0], [0, 1]]);
+  assert.throws(() => readEmbeddingBatch({ data: [rows[0], rows[0]] }, "model", 2, 2));
+  assert.throws(() => readEmbeddingBatch({ data: rows, model: "other" }, "model", 2, 2));
+  assert.throws(() => readEmbeddingBatch({ data: rows }, "model", 2, 3));
+  assert.throws(() => readEmbeddingBatch({ data: [{ index: 0, embedding: [0, 0] }] }, "model", 1, 2));
+});
+
+test("profession chunks include every eligible skill and its scope from the export", () => {
+  const source = JSON.parse(fs.readFileSync("data/export/navigator.json", "utf8")) as {
+    professions: Array<{ profession_id: string; skills: Array<{
+      name: string; matching_eligible: string; applicability_condition: string | null;
+    }> }>;
+  };
+  const catalog = loadRuntimeCatalog().catalog;
+  for (const profession of source.professions) {
+    const chunk = catalog.chunks.find((item) => item.metadata.profession_id === profession.profession_id);
+    assert.ok(chunk);
+    const allowed = profession.skills.filter((skill) => skill.matching_eligible === "yes_provisional");
+    const normalized = catalog.professions.find((item) => item.profession_id === profession.profession_id);
+    assert.deepEqual(normalized?.skills.map((skill) => skill.name).sort(), allowed.map((skill) => skill.name).sort());
+    for (const skill of allowed) {
+      assert.ok(chunk.text.includes(skill.name));
+      if (skill.applicability_condition) assert.ok(chunk.text.includes(skill.applicability_condition));
+    }
+  }
+});

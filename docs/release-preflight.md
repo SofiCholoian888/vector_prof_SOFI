@@ -7,7 +7,7 @@
 - Каталог freeze читается в runtime: 152 профессии, 184 пробы, 337 программ.
 - Пустая таблица `professions` больше не даёт 503, если freeze доступен. Профессия без UUID отдаётся по стабильному `profession_id`.
 - Синхронизация профессий добавляет недостающие строки и не удаляет существующие. UUID создаёт только PostgreSQL. Повторный запуск не создаёт дубли.
-- Сборщик эмбеддингов читает freeze. `--dry-run` не ходит в сеть. Semantic включается только для проверенного индекса `vector_source=provider` на все 152 профессии. Текущий индекс EmbeddingsGigaR остаётся лексическим fallback и не заменяется mock-векторами.
+- Сборщик эмбеддингов читает freeze. `--dry-run` не ходит в сеть. Semantic включается только для проверенного индекса `vector_source=provider` на все 152 профессии. Текущий индекс EmbeddingsGigaR покрывает 152 профессии. [Отчёт и команды проверки](../backend/docs/semantic-index-coverage.md).
 - Доставка кодов регистрации работает через HTTP webhook, SMTP или локальный файл. В production регистрация остаётся выключенной, пока не настроен HTTP или SMTP.
 
 ## Изолированная база
@@ -51,7 +51,7 @@ node --experimental-strip-types scripts/build-embedding-index.mjs --dry-run
 node --experimental-strip-types scripts/build-embedding-index.mjs --apply
 ```
 
-Пока такой индекс не проверен, retrieval остаётся на лексическом fallback. Mock-файл нельзя записывать поверх `data/catalog.index.json`.
+При устаревшем индексе или недоступном шлюзе retrieval переходит на лексический поиск. Mock-файл нельзя записывать поверх `data/catalog.index.json`.
 
 ## Почта
 
@@ -69,5 +69,5 @@ node --experimental-strip-types scripts/build-embedding-index.mjs --apply
 
 - Получить реальные SMTP или webhook credentials и DNS у команды. Не подставлять их в репозиторий.
 - Прогнать миграции 001–013 и синхронизацию профессий на копии целевой базы, не на production.
-- Построить и проверить provider-индекс EmbeddingsGigaR. До этого semantic не включать.
+- Проверить готовый индекс командой `--check` и подтвердить `semantic` на целевом стенде.
 - Снять backup целевой базы и согласовать окно применения.

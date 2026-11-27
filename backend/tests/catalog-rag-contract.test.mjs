@@ -2,18 +2,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const graph=JSON.parse(readFileSync(new URL("../data/navigator_full_graph.json",import.meta.url),"utf8"));
-const index=JSON.parse(readFileSync(new URL("../data/catalog.index.json",import.meta.url),"utf8"));
-const normalized=JSON.parse(readFileSync(new URL("../data/catalog.normalized.json",import.meta.url),"utf8"));
+import { fileURLToPath } from "node:url";
+import { loadRuntimeCatalog } from "../lib/runtime-catalog.ts";
+
+const index = JSON.parse(readFileSync(new URL("../data/catalog.index.json", import.meta.url), "utf8"));
+const normalized = loadRuntimeCatalog(fileURLToPath(new URL("..", import.meta.url))).catalog;
 
 test("RAG index is built for the exact normalized catalog snapshot",()=>{
  assert.equal(index.catalog_version,normalized.version,"Stale index catalog version");
  assert.equal(index.entries.length,normalized.chunks.length,"Missing or extra indexed chunks");
  assert.ok(index.entries.length>0,"Index is empty");
 });
-test("every RAG profession and industry reference belongs to graph v3",()=>{
- const professions=new Set(graph.professions.map(p=>p.profession_id));
- const industries=new Set(graph.industries.map(p=>p.industry_id));
+test("every RAG profession and industry reference belongs to the runtime catalog",()=>{
+ const professions=new Set(normalized.professions.map(p=>p.profession_id));
+ const industries=new Set(normalized.industries.map(p=>p.id));
  const unknown=[];
  for(const e of index.entries){
   const p=e.metadata?.profession_id, i=e.metadata?.industry_id;

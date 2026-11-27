@@ -1,4 +1,4 @@
-import { NormalizedProfession } from "./catalog";
+import type { NormalizedProfession } from "./catalog";
 
 export function estimateAgeFromGrade(grade: number): number {
   return grade + 6;

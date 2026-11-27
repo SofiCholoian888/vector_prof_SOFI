@@ -99,7 +99,7 @@ export function adaptFreezeExport(data: unknown): NormalizedCatalog | null {
       const id = text(skill.skill_id);
       if (!skillIds.has(id)) return false;
       const eligible = skill.matching_eligible;
-      return eligible === undefined || eligible === "yes_provisional";
+      return eligible === "yes_provisional";
     });
     if (list(profession.skills).some((skill) => text(skill.skill_id) && !skillIds.has(text(skill.skill_id)))) return null;
 
@@ -181,7 +181,13 @@ export function adaptFreezeExport(data: unknown): NormalizedCatalog | null {
   const chunks = [
     ...normalizedProfessions.map((profession) => ({
       type: "profession_core" as const,
-      text: [profession.name, profession.industry_name, profession.what_kid_does, profession.description_5_8, profession.key_skills.join(", ")].filter(Boolean).join(". "),
+      text: [
+        profession.name, profession.industry_name, profession.what_kid_does,
+        profession.description_1_4, profession.description_5_8, profession.description_9_11,
+        ...profession.skills.map((skill) =>
+          [skill.name, skill.applicability_condition].filter(Boolean).join(" — ")
+        ),
+      ].filter(Boolean).join(". "),
       metadata: { profession_id: profession.profession_id, industry_id: profession.industry_id, trial_ids: profession.trial_ids, program_ids: profession.program_ids },
     })),
     ...normalizedIndustries.map((industry) => ({

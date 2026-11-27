@@ -379,6 +379,7 @@ export async function runSofiPipeline(
     if (!mappedTags.length) result.status = "no_match";
   }
   result.generation = {
+    retrievalMode: retrieval.mode,
     mode,
     tier,
     promptVersion: mode === "llm" ? promptVersion : result.generation?.promptVersion ?? null,
