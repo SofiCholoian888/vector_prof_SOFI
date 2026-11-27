@@ -1,6 +1,6 @@
 import agePolicy from "@/config/age_policy.json" with { type: "json" };
 import type { Dossier } from "./dossier";
-import { postprocess, type PostprocessContext } from "./postprocess";
+import { evidenceReason, postprocess, type PostprocessContext } from "./postprocess";
 import type { RetrievalResult } from "./retrieval";
 
 export interface FallbackOptions {
@@ -111,8 +111,13 @@ export async function buildFallbackResponse(opts: FallbackOptions) {
     ...ctx,
     coverageGap: ctx.coverageGap || retrieval.coverageGap,
     retrievalScores: retrieval.professionScores,
+    retrievalRawScores: retrieval.professionRawScores,
   });
   postprocessWarnings.forEach((warning) => warnings.add(warning));
+  // Explain the pick with the answers that produced it, not with a placeholder.
+  hypotheses.forEach((hypothesis) => {
+    hypothesis.why = evidenceReason(hypothesis) || hypothesis.why;
+  });
 
   return {
     status: hypotheses.length || retrievalUnavailable ? "fallback" : "no_match",

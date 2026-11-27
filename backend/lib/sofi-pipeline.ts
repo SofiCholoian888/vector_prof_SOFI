@@ -11,7 +11,7 @@ import { buildFallbackResponse } from "@/lib/ai/fallback";
 import { buildElementaryTargets } from "@/lib/ai/elementary";
 import { generateValidatedResponse } from "@/lib/ai/generate";
 import { OpenAICompatibleClient } from "@/lib/ai/llm/openaiCompatible";
-import { postprocess, type PostprocessContext } from "@/lib/ai/postprocess";
+import { evidenceReason, postprocess, type PostprocessContext } from "@/lib/ai/postprocess";
 import { buildPrompt } from "@/lib/ai/prompts";
 import { retrieve } from "@/lib/ai/retrieval";
 import { loadRuntimeCatalog } from "@/lib/runtime-catalog";
@@ -51,6 +51,8 @@ function emptyRetrieval(reason: string) {
     professionIds: [] as string[],
     evidence: {} as Record<string, string[]>,
     professionScores: {} as Record<string, number>,
+    professionRawScores: {} as Record<string, number>,
+    professionSources: {} as Record<string, string[]>,
     industryScores: {} as Record<string, number>,
     coverageGap: true,
     uncoveredAnswerRefs: [] as string[],
@@ -136,6 +138,7 @@ export async function runSofiPipeline(
     industryIds: new Set(Object.keys(industriesMap)),
     retrievedIndustryIds: new Set(retrieval.industryIds),
     retrievalScores: retrieval.professionScores,
+    retrievalRawScores: retrieval.professionRawScores,
     emptyShare: dossier.emptyShare,
     coverageGap: retrieval.coverageGap,
     inRegion: dossier.student.in_region,
@@ -326,15 +329,10 @@ export async function runSofiPipeline(
           interest_tags: [],
           // Explain each recommendation using the exact answers referenced by the model.
           // Do not infer interests from the profession title or fabricate evidence.
-          hypotheses: processed.hypotheses.map((hypothesis) => {
-            const selected = [...new Set(hypothesis.evidence.flatMap((item) => item.selected)
-              .map((answer) => answer.trim())
-              .filter((answer) => answer.length > 2 && answer.length < 160))].slice(0, 3);
-            const evidenceReason = selected.length
-              ? `В твоих ответах: ${selected.map((answer) => `«${answer}»`).join(", ")}. Это одна из причин рассмотреть профессию «${hypothesis.name}» и проверить интерес на практике.`
-              : "";
-            return { ...hypothesis, why: evidenceReason || hypothesis.why };
-          }),
+          hypotheses: processed.hypotheses.map((hypothesis) => ({
+            ...hypothesis,
+            why: evidenceReason(hypothesis) || hypothesis.why,
+          })),
           next_step: nextStep,
           warnings: [...new Set([
             ...dossier.warnings,

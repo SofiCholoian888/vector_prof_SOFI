@@ -16,6 +16,11 @@ export interface RetrievalResult {
   // Маппинг: ID результата -> массив refs (A1, A2...), которые его вытянули
   evidence: Record<string, string[]>;
   professionScores: Record<string, number>;
+  // Лучшее сырое сходство до RRF: RRF теряет величину сигнала, поэтому
+  // именно оно решает ничьи между профессиями с одинаковым рангом.
+  professionRawScores: Record<string, number>;
+  // Группы запросов, которые вытянули профессию: нужны для разбора перекосов.
+  professionSources: Record<string, string[]>;
   industryScores: Record<string, number>;
   coverageGap: boolean;
   uncoveredAnswerRefs: string[];
@@ -143,10 +148,11 @@ function hasCatalogTerm(text: string, catalogText: string): boolean {
 
 interface QueryGroup {
   groupName: string;
-  text: string;
   parts: string[];
   refs: string[];
 }
+
+const PROCESS_QUESTION = /decision|readiness|events|мероприяти|решени|готовност/;
 
 export function buildQueries(dossier: Dossier): QueryGroup[] {
   const groups: QueryGroup[] = [];
@@ -163,13 +169,18 @@ export function buildQueries(dossier: Dossier): QueryGroup[] {
 
   for (const ans of dossier.answers) {
     const qId = `${ans.questionId} ${ans.question}`.toLowerCase();
-    const selectedText = `${ans.question}: ${ans.selected.join(", ")}`;
+    // Choice status, readiness and attended career-guidance events describe the
+    // process, not an interest. Their options name school formats ("профпробы в
+    // колледже", "кружки (дополнительное образование)") and pulled education
+    // professions to the top of every list.
+    if (PROCESS_QUESTION.test(qId)) continue;
+    // Use the chosen options only. Question wording is identical for every
+    // student and only adds school vocabulary to the query.
+    const selectedText = ans.selected.join(", ");
     generalTexts.push(selectedText);
     generalRefs.push(ans.ref);
 
-    if (
-      /subject|profile|events|decision|readiness|предмет|профил|мероприяти|решени|готовност/.test(qId)
-    ) {
+    if (/subject|profile|предмет|профил/.test(qId)) {
       subjects.push(selectedText);
       subjectsRefs.push(ans.ref);
     } else if (/future_direction|direction|направлени/.test(qId)) {
@@ -184,7 +195,6 @@ export function buildQueries(dossier: Dossier): QueryGroup[] {
   if (subjects.length > 0) {
     groups.push({
       groupName: "subjects",
-      text: `Предметы и профиль: ${subjects.join("; ")}`,
       parts: subjects,
       refs: subjectsRefs,
     });
@@ -192,7 +202,6 @@ export function buildQueries(dossier: Dossier): QueryGroup[] {
   if (situations.length > 0) {
     groups.push({
       groupName: "situations",
-      text: `Ситуативные выборы: ${situations.join("; ")}`,
       parts: situations,
       refs: situationsRefs,
     });
@@ -200,7 +209,6 @@ export function buildQueries(dossier: Dossier): QueryGroup[] {
   if (direction.length > 0) {
     groups.push({
       groupName: "direction",
-      text: `Направление: ${direction.join("; ")}`,
       parts: direction,
       refs: directionRefs,
     });
@@ -210,7 +218,6 @@ export function buildQueries(dossier: Dossier): QueryGroup[] {
   if (generalTexts.length > 0) {
     groups.push({
       groupName: "general",
-      text: `Общий профиль: ${generalTexts.join("; ")}`,
       parts: generalTexts,
       refs: generalRefs,
     });
@@ -232,6 +239,8 @@ export async function retrieve(
       professionIds: [],
       evidence: {},
       professionScores: {},
+      professionRawScores: {},
+      professionSources: {},
       industryScores: {},
       coverageGap: false,
       uncoveredAnswerRefs: [],
@@ -295,7 +304,14 @@ export async function retrieve(
   const isMock = process.env.USE_MOCK_EMBEDDINGS === "true";
   let semanticAvailable = vectorsUsable && isMock;
   let queryVectors: number[][] = [];
-  const allQueryTexts = queries.map((query) => query.text);
+  // Embed each answer on its own. A group text concatenates up to twenty
+  // answers and turns into a generic "school" description that every education
+  // profession matches; per-answer vectors keep the specific signal and let a
+  // hypothesis cite the answer that actually matched.
+  const queryOffsets = queries.map((_, index) =>
+    queries.slice(0, index).reduce((sum, query) => sum + query.parts.length, 0)
+  );
+  const allQueryTexts = queries.flatMap((query) => query.parts);
   if (!indexIsCurrent) warnings.add("catalog_index_stale_lexical_fallback");
   else if (recorded.conflict && process.env.USE_MOCK_EMBEDDINGS !== "true") warnings.add("catalog_index_model_conflict_lexical_fallback");
   else if (!vectorsUsable) warnings.add("catalog_index_model_unverified_lexical_fallback");
@@ -334,57 +350,74 @@ export async function retrieve(
     }
   }
 
+  const rawScoreById = new Map<string, number>();
+  const sourcesById = new Map<string, Set<string>>();
+  const addEvidence = (id: string, refs: string[]) => {
+    if (!evidenceMap.has(id)) evidenceMap.set(id, new Set());
+    refs.forEach((ref) => evidenceMap.get(id)!.add(ref));
+  };
+
   for (const [queryIndex, query] of queries.entries()) {
-    const qVector = semanticAvailable ? queryVectors[queryIndex] : undefined;
-    const minimumScore = qVector
+    const qVectors = semanticAvailable
+      ? queryVectors.slice(queryOffsets[queryIndex], queryOffsets[queryIndex] + query.parts.length)
+      : undefined;
+    const minimumScore = qVectors
       ? ragConfig.min_similarity
       : ragConfig.lexical_min_similarity;
-    const scoreEntry = (entry: IndexEntry) =>
-      qVector
-        ? cosineSimilarity(qVector, entry.vector)
-        : Math.max(
-            ...query.parts.map((part) =>
-              lexicalSimilarity(part, entry.metadata.text_preview ?? "")
-            )
-          );
+    const scoreEntry = (entry: IndexEntry): { score: number; partIndex: number } => {
+      let score = 0;
+      let partIndex = -1;
+      query.parts.forEach((part, index) => {
+        const value = qVectors
+          ? cosineSimilarity(qVectors[index] ?? [], entry.vector)
+          : lexicalSimilarity(part, entry.metadata.text_preview ?? "");
+        if (value > score) {
+          score = value;
+          partIndex = index;
+        }
+      });
+      return { score, partIndex };
+    };
+    // Cite only the answer that actually matched.
+    const refsFor = (partIndex: number) =>
+      partIndex >= 0 && query.refs[partIndex] ? [query.refs[partIndex]] : query.refs;
 
     // Ищем отрасли
     const industryScores = industryEntries.map((e) => ({
       id: e.metadata.industry_id!,
-      score: scoreEntry(e),
+      ...scoreEntry(e),
     }))
     .filter((x) => x.score >= minimumScore)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
     .slice(0, ragConfig.top_k_industries);
 
     industryLists.push(industryScores.map((x) => x.id));
 
-    // Запоминаем evidence для отраслей
-    for (const item of industryScores) {
-      if (!evidenceMap.has(item.id)) evidenceMap.set(item.id, new Set());
-      query.refs.forEach((r) => evidenceMap.get(item.id)!.add(r));
-    }
+    for (const item of industryScores) addEvidence(item.id, refsFor(item.partIndex));
 
     // Ищем профессии
-    const professionScoreById = new Map<string, number>();
+    const professionBestById = new Map<string, { score: number; partIndex: number }>();
     for (const entry of professionEntries) {
       const id = entry.metadata.profession_id;
       if (!id) continue;
-      const score = scoreEntry(entry);
-      professionScoreById.set(id, Math.max(professionScoreById.get(id) ?? -1, score));
+      const scored = scoreEntry(entry);
+      const current = professionBestById.get(id);
+      if (!current || scored.score > current.score) professionBestById.set(id, scored);
     }
-    const professionScores = [...professionScoreById.entries()]
-      .map(([id, score]) => ({ id, score }))
+    const professionScores = [...professionBestById.entries()]
+      .map(([id, scored]) => ({ id, ...scored }))
       .filter((item) => item.score >= minimumScore)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
       .slice(0, ragConfig.top_k_professions);
 
     professionLists.push(professionScores.map((x) => x.id));
 
-    // Запоминаем evidence для профессий
     for (const item of professionScores) {
-      if (!evidenceMap.has(item.id)) evidenceMap.set(item.id, new Set());
-      query.refs.forEach((r) => evidenceMap.get(item.id)!.add(r));
+      rawScoreById.set(item.id, Math.max(rawScoreById.get(item.id) ?? 0, item.score));
+      const sources = sourcesById.get(item.id) ?? new Set<string>();
+      sources.add(query.groupName);
+      sourcesById.set(item.id, sources);
+      addEvidence(item.id, refsFor(item.partIndex));
     }
 
     if (dossier.student.tier !== "1-4" && query.groupName === "direction") {
@@ -406,12 +439,17 @@ export async function retrieve(
   const industryRrf = rrf(industryLists);
   const professionRrf = rrf(professionLists);
 
-  // Сортируем по RRF-скору
+  // Сортируем по RRF-скору. RRF выравнивает ранги, поэтому ничьи решает
+  // сырое сходство: иначе порядок задаёт только id профессии.
   const sortedIndustries = [...industryRrf.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([id]) => id);
   const sortedProfessions = [...professionRrf.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .sort((a, b) =>
+      b[1] - a[1] ||
+      (rawScoreById.get(b[0]) ?? 0) - (rawScoreById.get(a[0]) ?? 0) ||
+      a[0].localeCompare(b[0])
+    )
     .map(([id]) => id);
 
   // 5. Формируем evidence (массив refs)
@@ -432,6 +470,10 @@ export async function retrieve(
     professionIds: sortedProfessions,
     evidence,
     professionScores: Object.fromEntries(professionRrf),
+    professionRawScores: Object.fromEntries(rawScoreById),
+    professionSources: Object.fromEntries(
+      [...sourcesById.entries()].map(([id, sources]) => [id, [...sources]])
+    ),
     industryScores: Object.fromEntries(industryRrf),
     coverageGap: uncoveredAnswerRefs.size > 0,
     uncoveredAnswerRefs: [...uncoveredAnswerRefs],

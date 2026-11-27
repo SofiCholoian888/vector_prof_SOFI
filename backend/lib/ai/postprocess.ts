@@ -51,6 +51,7 @@ export interface PostprocessContext {
   industryIds: Set<string>;
   retrievedIndustryIds?: Set<string>;
   retrievalScores?: Record<string, number>;
+  retrievalRawScores?: Record<string, number>;
   emptyShare: number;
   coverageGap: boolean;
   inRegion: boolean;
@@ -299,14 +300,22 @@ export async function postprocess(
 
   const strengthRank = { strong: 3, moderate: 2, weak: 1 };
   const confidenceRank = { high: 3, medium: 2, low: 1 };
+  const scoreOf = (id: string) => ctx.retrievalScores?.[id] ?? 0;
+  const rawScoreOf = (id: string) => ctx.retrievalRawScores?.[id] ?? 0;
+  // RRF scores live in a narrow band (about 1/61..1/16), so a fixed absolute
+  // epsilon marked almost every pair as equal and left profession_id to decide
+  // the order. Compare with a share of the best score instead.
+  const bestScore = Math.max(0, ...Object.values(ctx.retrievalScores ?? {}));
+  const tolerance = bestScore * ragConfig.epsilon_relative;
   enriched.sort((a, b) => {
     const strengthDiff = strengthRank[b.match_strength] - strengthRank[a.match_strength];
     if (strengthDiff !== 0) return strengthDiff;
 
-    const scoreDiff =
-      (ctx.retrievalScores?.[b.profession_id] ?? 0) -
-      (ctx.retrievalScores?.[a.profession_id] ?? 0);
-    if (Math.abs(scoreDiff) > ragConfig.epsilon) return scoreDiff;
+    const scoreDiff = scoreOf(b.profession_id) - scoreOf(a.profession_id);
+    if (Math.abs(scoreDiff) > tolerance) return scoreDiff;
+
+    const rawDiff = rawScoreOf(b.profession_id) - rawScoreOf(a.profession_id);
+    if (rawDiff !== 0) return rawDiff;
 
     const confidenceDiff =
       confidenceRank[b.confidence?.level ?? "low"] -
@@ -331,4 +340,18 @@ export async function postprocess(
   if (rawHypotheses.length > 0 && hypotheses.length === 0) warnings.add("no_valid_hypotheses");
 
   return { hypotheses, warnings: [...warnings] };
+}
+
+/**
+ * Explanation built only from the answers that produced the hypothesis.
+ * Both the LLM path and the retrieval-only path use it, so the visible reason
+ * always quotes real input instead of a generic phrase.
+ */
+export function evidenceReason(hypothesis: CleanHypothesis): string {
+  const selected = [...new Set(hypothesis.evidence.flatMap((item) => item.selected)
+    .map((answer) => answer.trim())
+    .filter((answer) => answer.length > 2 && answer.length < 160))].slice(0, 3);
+  return selected.length
+    ? `В твоих ответах: ${selected.map((answer) => `«${answer}»`).join(", ")}. Это одна из причин рассмотреть профессию «${hypothesis.name}» и проверить интерес на практике.`
+    : "";
 }
