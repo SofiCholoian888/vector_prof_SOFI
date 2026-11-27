@@ -21,9 +21,9 @@ export async function buildPrompt(tierId: "1-4" | "5-8" | "9-11"): Promise<strin
   const commonText = await fs.readFile(commonPath, "utf8");
   let specificText = await fs.readFile(specificPath, "utf8");
   const promptHash = createHash("sha256")
-    .update(specificText)
+    .update(specificText.replace(/\r\n?/g, "\n"))
     .update("\0")
-    .update(commonText)
+    .update(commonText.replace(/\r\n?/g, "\n"))
     .digest("hex");
   if (manifestEntry.sha256 && manifestEntry.sha256 !== promptHash) {
     throw new Error(`Хэш промта ${manifestEntry.prompt} не совпадает с prompts/manifest.json`);

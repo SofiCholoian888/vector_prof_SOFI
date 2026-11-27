@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { generateValidatedResponse } from "../lib/ai/generate.ts";
+import { buildPrompt } from "../lib/ai/prompts.ts";
 import type { ValidationContext } from "../lib/ai/validate.ts";
 import { prepareSofiInput } from "../lib/sofi-adapter.ts";
 import { runSofiPipeline } from "../lib/sofi-pipeline.ts";
@@ -32,6 +33,12 @@ const payload = {
     trial_ids: ["trial_024", "trial_999"], program_ids: ["prog_999"], watch_out: "",
   }],
 };
+
+test("prompt hashes validate with platform-specific line endings", async () => {
+  for (const tier of ["1-4", "5-8", "9-11"] as const) {
+    assert.ok((await buildPrompt(tier)).length > 0);
+  }
+});
 
 test("a transient chat timeout gets a second attempt within the deadline without exposing invalid links", async () => {
   let calls = 0;

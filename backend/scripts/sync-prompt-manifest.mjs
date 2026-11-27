@@ -9,7 +9,11 @@ for(const tier of ["1-4","5-8","9-11"]){
  const entry=manifest[tier];
  const [name,version]=entry.prompt.split("@");
  const specific=await fs.readFile(path.join(root,"prompts",name,version+".md"),"utf8");
- const sha256=createHash("sha256").update(specific).update("\0").update(common).digest("hex");
+ const sha256=createHash("sha256")
+  .update(specific.replace(/\r\n?/g,"\n"))
+  .update("\0")
+  .update(common.replace(/\r\n?/g,"\n"))
+  .digest("hex");
  if(entry.sha256!==sha256){
   console.log("[Prompt manifest] Synchronizing",entry.prompt,"SHA-256",sha256);
   entry.sha256=sha256;
