@@ -8,6 +8,13 @@ import axios from "axios";
 import { embeddingVectorsUsable, readRecordedEmbeddingModel } from "./index-contract";
 import { gatewayEndpoint, readEmbeddingsGateway } from "./gateway-env";
 import { cosineSimilarity, lexicalSimilarity, selectRetrievalMode } from "./retrieval-mode";
+import {
+  assertEmbeddingQueryModeSupported,
+  formatEmbeddingQuery,
+  readEmbeddingQueryMode,
+} from "./embedding-query";
+import { assertNoMockEmbeddingsInProduction, isMockEmbeddingsEnabled } from "./runtime-guards";
+import { countMetric, logEvent } from "../observe";
 
 // ---------- Типы ----------
 export interface RetrievalResult {
@@ -301,9 +308,11 @@ export async function retrieve(
   const evidenceMap = new Map<string, Set<string>>(); // ID -> Set of refs
   const warnings = new Set<string>();
   const uncoveredAnswerRefs = new Set<string>();
-  const isMock = process.env.USE_MOCK_EMBEDDINGS === "true";
+  assertNoMockEmbeddingsInProduction();
+  const isMock = isMockEmbeddingsEnabled();
   let semanticAvailable = vectorsUsable && isMock;
   let queryVectors: number[][] = [];
+  let embeddingDurationMs: number | null = null;
   // Embed each answer on its own. A group text concatenates up to twenty
   // answers and turns into a generic "school" description that every education
   // profession matches; per-answer vectors keep the specific signal and let a
@@ -312,6 +321,14 @@ export async function retrieve(
     queries.slice(0, index).reduce((sum, query) => sum + query.parts.length, 0)
   );
   const allQueryTexts = queries.flatMap((query) => query.parts);
+  // Инструкция живёт только в тексте для embedding API. Исходные ответы
+  // остаются нетронутыми: по ним считаются lexical, evidence refs и покрытие.
+  const queryMode = readEmbeddingQueryMode();
+  assertEmbeddingQueryModeSupported(queryMode, configuredModel ?? "");
+  if (queryMode !== "plain" && isMock) {
+    throw new Error("EMBEDDING_QUERY_MODE не применяется к тестовым (mock) эмбеддингам");
+  }
+  const embeddingQueryTexts = allQueryTexts.map((text) => formatEmbeddingQuery(text, queryMode));
   if (!indexIsCurrent) warnings.add("catalog_index_stale_lexical_fallback");
   else if (recorded.conflict && process.env.USE_MOCK_EMBEDDINGS !== "true") warnings.add("catalog_index_model_conflict_lexical_fallback");
   else if (!vectorsUsable) warnings.add("catalog_index_model_unverified_lexical_fallback");
@@ -334,11 +351,13 @@ export async function retrieve(
       warnings.add("embedding_deadline_exceeded_lexical_fallback");
     } else {
       try {
+        const embeddingStartedAt = Date.now();
         queryVectors = await getEmbeddings(
-          allQueryTexts,
+          embeddingQueryTexts,
           entries,
           Math.min(ragConfig.embedding_timeout_ms, remaining)
         );
+        embeddingDurationMs = Date.now() - embeddingStartedAt;
         semanticAvailable = true;
       } catch (error) {
         warnings.add("embedding_unavailable_lexical_fallback");
@@ -465,6 +484,23 @@ export async function retrieve(
     semanticAvailable,
   });
   console.log("[RAG E2E] retrieval mode:", mode, "professions:", sortedProfessions.length, "warnings:", [...warnings].join(","));
+  countMetric(`retrieval_mode_${mode}`);
+  if (!semanticAvailable && vectorsUsable) countMetric("retrieval_semantic_fallback");
+  logEvent("semantic_retrieval_completed", {
+    catalogVersion: catalog.version,
+    catalogOrigin: runtimeCatalog.origin,
+    professionCount: entries.filter((entry) => entry.type === "profession_core").length,
+    indexEntryCount: index.entries.length,
+    indexCurrent: indexIsCurrent,
+    embeddingModel: configuredModel,
+    embeddingDimensions: entries[0]?.vector.length ?? null,
+    embeddingQueryMode: queryMode,
+    embeddingStatus: semanticAvailable ? "success" : "fallback",
+    retrievalMode: mode,
+    candidateCount: sortedProfessions.length,
+    embeddingDurationMs,
+    warnings: [...warnings],
+  });
   return {
     industryIds: sortedIndustries,
     professionIds: sortedProfessions,

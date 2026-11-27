@@ -10,6 +10,28 @@ export const LEGACY_GRAPH_PATH = "data/navigator_full_graph.json";
 
 export type CatalogOrigin = "data_freeze_1" | "legacy_normalized";
 
+export class CatalogUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CatalogUnavailableError";
+  }
+}
+
+/**
+ * В production утверждён Data Freeze, поэтому переход на старый каталог
+ * по умолчанию запрещён: иначе при повреждении нового файла пользователь
+ * молча получит профессии из прежнего каталога.
+ */
+export function readCatalogPolicy(env: NodeJS.ProcessEnv = process.env): { requireFreeze: boolean } {
+  const raw = (env.REQUIRE_FREEZE_CATALOG ?? "").trim().toLowerCase();
+  if (raw === "") return { requireFreeze: true };
+  if (raw === "true") return { requireFreeze: true };
+  if (raw === "false") return { requireFreeze: false };
+  throw new CatalogUnavailableError(
+    `REQUIRE_FREEZE_CATALOG должен быть true или false; получено «${raw}»`
+  );
+}
+
 export type RuntimeCatalog = {
   origin: CatalogOrigin;
   catalog: NormalizedCatalog;
@@ -241,6 +263,13 @@ export function loadRuntimeCatalog(cwd = process.cwd()): RuntimeCatalog {
     cached = { cwd, value: { origin: "data_freeze_1", catalog: freeze, legacyNames: names } };
     return cached.value;
   }
+  if (readCatalogPolicy().requireFreeze) {
+    throw new CatalogUnavailableError(
+      `Каталог Data Freeze 1 недоступен или не прошёл проверки (${FREEZE_CATALOG_PATH}). ` +
+        "Переход на legacy-каталог запрещён: REQUIRE_FREEZE_CATALOG=true."
+    );
+  }
+  console.warn("[Catalog] Data Freeze недоступен, используется legacy-каталог (REQUIRE_FREEZE_CATALOG=false).");
   const legacy = row(readJson(cwd, LEGACY_NORMALIZED_PATH));
   if (!legacy || !Array.isArray(legacy.professions)) {
     throw new Error("Neither the freeze catalog nor the legacy normalized catalog could be read");

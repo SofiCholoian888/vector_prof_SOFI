@@ -9,6 +9,8 @@ import { type NormalizedCatalog, type NormalizedProfession } from "@/lib/ai/cata
 import { buildDossier } from "@/lib/ai/dossier";
 import { buildFallbackResponse } from "@/lib/ai/fallback";
 import { buildElementaryTargets } from "@/lib/ai/elementary";
+import { EmbeddingQueryConfigError, embeddingQueryVersion, readEmbeddingQueryMode } from "@/lib/ai/embedding-query";
+import { AiConfigError, assertNoMockEmbeddingsInProduction } from "@/lib/ai/runtime-guards";
 import { generateValidatedResponse } from "@/lib/ai/generate";
 import { OpenAICompatibleClient } from "@/lib/ai/llm/openaiCompatible";
 import { evidenceReason, postprocess, type PostprocessContext } from "@/lib/ai/postprocess";
@@ -73,6 +75,7 @@ function isSofiResult(value: unknown): value is SofiModuleResult {
 export async function runSofiPipeline(
   input: SofiPipelineInput
 ): Promise<SofiModuleResult> {
+  assertNoMockEmbeddingsInProduction();
   const { prepared } = input;
   const grade = prepared.student.school_grade;
   const dossier = buildDossier(prepared.rawAnswers, prepared.student);
@@ -106,6 +109,8 @@ export async function runSofiPipeline(
       deadlineAt: Date.now() + ragConfig.embedding_timeout_ms,
     });
   } catch (error) {
+    // Ошибка конфигурации не должна превращаться в тихую деградацию поиска.
+    if (error instanceof EmbeddingQueryConfigError || error instanceof AiConfigError) throw error;
     console.warn(
       "[AI] Подбор по каталогу не выполнен; включён retrieval-only fallback.",
       error instanceof Error ? error.message : "unknown error"
@@ -117,7 +122,9 @@ export async function runSofiPipeline(
   const promptVersion = promptManifest[tier].prompt;
   const configVersion =
     `${agePolicy.version}+rag-${ragConfig.version}+llm-${llmConfig.version}` +
-    `+validation-${validationPatterns.version}`;
+    `+validation-${validationPatterns.version}` +
+    // Разные режимы инструкции не должны переиспользовать кэш друг друга.
+    `+emb-${embeddingQueryVersion(readEmbeddingQueryMode())}`;
   const cacheKey = makeCacheKey(
     [dossier, retrieval],
     promptVersion,

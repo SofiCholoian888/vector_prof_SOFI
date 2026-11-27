@@ -9,6 +9,7 @@ import { GET as getProfession } from "../app/api/professions/[id]/route.ts";
 import { GET as getProfessions } from "../app/api/professions/route.ts";
 import { GET as getTrials } from "../app/api/trials/route.ts";
 import {
+  CatalogUnavailableError,
   adaptFreezeExport,
   loadRuntimeCatalog,
   professionTitle,
@@ -56,7 +57,7 @@ test("runtime catalog is Alice's freeze, with legacy names only as fallback", ()
   assert.equal(adaptFreezeExport({}), null);
 });
 
-test("an invalid freeze falls back to the legacy normalized catalog", () => {
+test("an invalid freeze fails loudly unless the legacy fallback is explicitly allowed", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vector-catalog-"));
   fs.mkdirSync(path.join(dir, "data", "export"), { recursive: true });
   fs.writeFileSync(path.join(dir, "data", "export", "navigator.json"), "{}");
@@ -67,12 +68,24 @@ test("an invalid freeze falls back to the legacy normalized catalog", () => {
   fs.writeFileSync(path.join(dir, "data", "navigator_full_graph.json"), JSON.stringify({
     professions: [{ profession_id: "prof_016", name: "Лаборант" }],
   }));
-  resetRuntimeCatalogCache();
-  const runtime = loadRuntimeCatalog(dir);
-  assert.equal(runtime.origin, "legacy_normalized");
-  assert.equal(runtime.catalog.professions[0]?.profession_id, "prof_legacy");
-  assert.equal(professionTitle(runtime, "prof_016"), "Лаборант");
-  resetRuntimeCatalogCache();
+  const previous = process.env.REQUIRE_FREEZE_CATALOG;
+  try {
+    // Без утверждённого каталога сервис не должен молча отдавать старые профессии.
+    delete process.env.REQUIRE_FREEZE_CATALOG;
+    resetRuntimeCatalogCache();
+    assert.throws(() => loadRuntimeCatalog(dir), CatalogUnavailableError);
+
+    process.env.REQUIRE_FREEZE_CATALOG = "false";
+    resetRuntimeCatalogCache();
+    const runtime = loadRuntimeCatalog(dir);
+    assert.equal(runtime.origin, "legacy_normalized");
+    assert.equal(runtime.catalog.professions[0]?.profession_id, "prof_legacy");
+    assert.equal(professionTitle(runtime, "prof_016"), "Лаборант");
+  } finally {
+    if (previous === undefined) delete process.env.REQUIRE_FREEZE_CATALOG;
+    else process.env.REQUIRE_FREEZE_CATALOG = previous;
+    resetRuntimeCatalogCache();
+  }
 });
 
 test("GET /api/professions returns the freeze when PostgreSQL is unavailable", async () => {

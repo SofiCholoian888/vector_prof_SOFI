@@ -26,6 +26,8 @@ const profileFilter = flags.find((flag) => flag.startsWith("--profile="))?.slice
 
 const modeFlag = flags.find((flag) => flag.startsWith("--mode="))?.slice("--mode=".length) ?? "lexical";
 process.env.USE_MOCK_EMBEDDINGS = "false";
+// Сравнительные прогоны намеренно работают и на legacy-каталоге.
+process.env.REQUIRE_FREEZE_CATALOG = process.env.REQUIRE_FREEZE_CATALOG ?? "false";
 if (modeFlag !== "semantic") {
   for (const key of ["LLM_BASE_URL", "LLM_API_KEY", "LLM_EMBEDDINGS_MODEL"]) delete process.env[key];
 }
